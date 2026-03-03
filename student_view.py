@@ -14,6 +14,10 @@ from akademik_engine import (
     get_akademik_sections, get_total_questions,
     calculate_akademik, generate_akademik_report,
 )
+from hizli_okuma_engine import (
+    get_passage_for_grade, count_words,
+    calculate_speed_reading, generate_speed_reading_report,
+)
 
 # --- TEST VERİLERİ MODÜLÜ ---
 from test_data import (
@@ -109,6 +113,13 @@ TEST_META = {
         "duration": "~25 dk",
         "questions": 67,
         "desc": "Okuma anlama, matematik, mantık ve akademik öz-değerlendirme ile akademik profilini çıkar.",
+    },
+    "Hızlı Okuma Testi": {
+        "icon": "📖",
+        "color": "#E67E22",
+        "duration": "~5 dk",
+        "questions": 10,
+        "desc": "Okuma hızını (kelime/dakika) ölç ve okuduğunu ne kadar anladığını test et.",
     },
 }
 
@@ -531,6 +542,121 @@ def _render_test_questions():
                     st.warning("⏰ Süre doldu! Lütfen satırı gönderin.")
 
     # ========================================
+    # TİP: HIZLI OKUMA TESTİ (3 Fazlı)
+    # ========================================
+    elif q_type == "speed_reading":
+        passage = st.session_state.sr_passage
+        kademe = st.session_state.sr_kademe
+        phase = st.session_state.sr_phase
+
+        # ---- FAZ 1: OKUMA ----
+        if phase == "reading":
+            word_count = count_words(passage["text"])
+
+            # Okuma başlatma anını kaydet
+            if st.session_state.sr_start_time is None:
+                st.session_state.sr_start_time = time.time()
+
+            st.markdown(f"### 📖 {passage['title']}")
+            st.markdown(f"<span style='color:#888; font-size:0.85rem;'>📝 {word_count} kelime</span>",
+                        unsafe_allow_html=True)
+            st.divider()
+
+            # Zamanlayıcı göstergesi (canlı sayaç)
+            elapsed = time.time() - st.session_state.sr_start_time
+            mins = int(elapsed) // 60
+            secs = int(elapsed) % 60
+
+            st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #FFF3E0, #FFE0B2); border: 1px solid #FFB74D;
+                            border-radius: 12px; padding: 12px 20px; margin: 10px 0;
+                            display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.5rem;">⏱️</span>
+                    <div>
+                        <div style="font-weight: 700; color: #E65100; font-size: 1.1rem;">
+                            Okuma süresi: {mins:02d}:{secs:02d}
+                        </div>
+                        <div style="font-size: 0.8rem; color: #888;">
+                            Metni dikkatlice oku — bitirdiğinde aşağıdaki butona bas
+                        </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Metin gösterimi
+            paragraphs = passage["text"].split("\n\n")
+            for para in paragraphs:
+                if para.strip():
+                    st.markdown(f"""
+                        <div style="background: #ffffff; border: 1px solid #E8E8E8; border-radius: 10px;
+                                    padding: 18px 22px; margin: 8px 0; font-size: 1.05rem;
+                                    line-height: 1.8; color: #333; text-align: justify;">
+                            {para.strip()}
+                        </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown("")
+
+            if st.button("✅ Okudum, Sorulara Geç", type="primary", use_container_width=True):
+                reading_time = time.time() - st.session_state.sr_start_time
+                st.session_state.sr_reading_time = reading_time
+                st.session_state.sr_phase = "questions"
+                st.session_state._scroll_top = True
+                st.rerun()
+
+            st.markdown("")
+            st.info("💡 Metni hızlı ama dikkatli oku. Butona bastığında metin gizlenecek ve anlama soruları gelecek.")
+
+        # ---- FAZ 2: ANLAMA SORULARI ----
+        elif phase == "questions":
+            questions = passage["questions"]
+            reading_time = st.session_state.sr_reading_time
+            mins = int(reading_time) // 60
+            secs = int(reading_time) % 60
+
+            st.markdown("### 🧠 Okuduğunu Anlama Soruları")
+
+            st.markdown(f"""
+                <div style="background: #E8F5E9; border: 1px solid #A5D6A7; border-radius: 12px;
+                            padding: 12px 20px; margin: 10px 0;">
+                    <span style="font-weight: 600; color: #2E7D32;">
+                        ⏱️ Okuma süren: {mins} dk {secs} sn
+                    </span>
+                    <span style="color: #555; font-size: 0.85rem; margin-left: 10px;">
+                        Şimdi metin hakkındaki soruları cevapla
+                    </span>
+                </div>
+            """, unsafe_allow_html=True)
+
+            st.warning("📌 Metin artık görünmüyor. Hatırladıklarına göre cevapla.")
+
+            with st.form("sr_questions_form"):
+                for i, q in enumerate(questions):
+                    prev = st.session_state.sr_answers.get(q["id"])
+                    keys = list(q["options"].keys())
+                    idx_prev = keys.index(prev) if prev in keys else None
+                    val = st.radio(
+                        f"**{i + 1}. {q['text']}**",
+                        keys,
+                        index=idx_prev,
+                        format_func=lambda k, o=q["options"]: f"{k}) {o[k]}",
+                        key=f"sr_{q['id']}",
+                    )
+                    if val:
+                        st.session_state.sr_answers[q["id"]] = val
+                    st.divider()
+
+                submitted = st.form_submit_button("Testi Bitir ✅", type="primary")
+
+            if submitted:
+                # Tüm sorular cevaplanmış mı kontrol et
+                answered = sum(1 for q in questions if q["id"] in st.session_state.sr_answers)
+                if answered < len(questions):
+                    st.error(f"⚠️ {len(questions) - answered} soru boş kaldı. Lütfen tüm soruları cevapla.")
+                else:
+                    _finish_speed_reading_test(t_name)
+
+    # ========================================
     # TİP: AKADEMİK ANALİZ (Bölümlü Performans)
     # ========================================
     elif q_type == "akademik_perf":
@@ -831,6 +957,7 @@ def app():
         "Holland Mesleki İlgi Envanteri",
         "D2 Dikkat Testi",
         "Akademik Analiz Testi",
+        "Hızlı Okuma Testi",
     ]
 
     # ============================================================
@@ -1020,6 +1147,27 @@ def app():
                             st.session_state.akd_section_idx = 0
                             st.session_state.akd_answers = {}
 
+                        elif "Hızlı Okuma" in test:
+                            student_grade = st.session_state.get("student_grade")
+                            if not student_grade:
+                                student_age = st.session_state.get("student_age", 15)
+                                if student_age <= 11:
+                                    student_grade = 5
+                                elif student_age <= 13:
+                                    student_grade = 7
+                                elif student_age <= 15:
+                                    student_grade = 9
+                                else:
+                                    student_grade = 11
+                            passage_data, kademe = get_passage_for_grade(student_grade)
+                            st.session_state.current_test_data = {"type": "speed_reading"}
+                            st.session_state.sr_passage = passage_data
+                            st.session_state.sr_kademe = kademe
+                            st.session_state.sr_phase = "reading"  # reading → questions → done
+                            st.session_state.sr_start_time = None  # okuma başladığında set edilecek
+                            st.session_state.sr_reading_time = None
+                            st.session_state.sr_answers = {}
+
                         st.session_state.page = "test"
                         st.session_state._scroll_top = True
                         st.rerun()
@@ -1075,6 +1223,47 @@ def app():
             
             st.info("💡 Doğru veya yanlış cevap yoktur. İçinden geldiği gibi, samimiyetle cevapla.")
             
+            # --- HIZLI OKUMA TESTİ İÇİN ÖZEL BİLGİ ---
+            if "Hızlı Okuma" in t_name:
+                from hizli_okuma_engine import KADEME_LABELS as HO_KADEME_LABELS, WPM_NORMS
+                kademe = st.session_state.get("sr_kademe", "kademe_2")
+                norms = WPM_NORMS.get(kademe, WPM_NORMS["kademe_2"])
+                kademe_label = HO_KADEME_LABELS.get(kademe, "")
+                passage = st.session_state.get("sr_passage", {})
+                word_count = count_words(passage.get("text", "")) if passage else 0
+
+                st.markdown(f"""
+                <div style="background: #FFF3E0; border: 1px solid #FFB74D; border-radius: 12px;
+                            padding: 20px; margin: 10px 0;">
+                    <div style="font-weight: 700; color: #E65100; font-size: 1.05rem; margin-bottom: 12px;">
+                        📖 Test Nasıl İşler?
+                    </div>
+                    <div style="font-size: 0.92rem; color: #444; line-height: 1.7;">
+                        <b>1.</b> Sana yaş grubuna uygun bir metin gösterilecek ({word_count} kelime)<br>
+                        <b>2.</b> Zamanlayıcı otomatik başlayacak — metni dikkatlice oku<br>
+                        <b>3.</b> "Okudum" butonuna bastığında metin gizlenecek<br>
+                        <b>4.</b> 10 anlama sorusu gelecek — hafızana güven!<br>
+                        <b>5.</b> Hem okuma hızın hem de anlama oranın raporlanacak
+                    </div>
+                    <div style="margin-top: 15px; padding-top: 12px; border-top: 1px dashed #FFB74D;">
+                        <div style="font-weight: 600; color: #E65100; margin-bottom: 8px;">
+                            📊 Yaş Grubu Normların ({kademe_label}):
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
+                            <tr style="background: #FFF8E1;">
+                                <th style="padding: 6px 10px; text-align: left; color: #E65100;">Seviye</th>
+                                <th style="padding: 6px 10px; text-align: center; color: #E65100;">Kelime/Dk</th>
+                            </tr>
+                            <tr><td style="padding: 5px 10px;">🔴 Çok Yavaş</td><td style="text-align:center;">&lt; {norms['cok_yavas']}</td></tr>
+                            <tr style="background:#fafafa;"><td style="padding: 5px 10px;">🟠 Yavaş</td><td style="text-align:center;">{norms['cok_yavas']} – {norms['yavas']}</td></tr>
+                            <tr><td style="padding: 5px 10px;">🟡 Ortalama</td><td style="text-align:center;">{norms['yavas']} – {norms['hizli']}</td></tr>
+                            <tr style="background:#fafafa;"><td style="padding: 5px 10px;">🔵 Hızlı</td><td style="text-align:center;">{norms['hizli']} – {norms['cok_hizli']}</td></tr>
+                            <tr><td style="padding: 5px 10px;">🟢 Çok Hızlı</td><td style="text-align:center;">&gt; {norms['cok_hizli']}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
             # --- D2 TESTİ İÇİN YAŞA GÖRE SÜRE BİLGİSİ ---
             if "D2 Dikkat" in t_name:
                 student_age = st.session_state.get("student_age", 15)
@@ -1182,6 +1371,43 @@ def _finish_d2_test(t_name):
 # ============================================================
 # AKADEMİK ANALİZ TEST BİTİRME FONKSİYONU
 # ============================================================
+def _finish_speed_reading_test(t_name):
+    """Hızlı okuma testini puanla, rapor üret ve veritabanına kaydet."""
+    answers = st.session_state.sr_answers
+    passage = st.session_state.sr_passage
+    kademe = st.session_state.sr_kademe
+    reading_time = st.session_state.sr_reading_time
+
+    with st.spinner("📊 Hızlı okuma sonuçların hesaplanıyor..."):
+        scores = calculate_speed_reading(answers, passage, reading_time, kademe)
+        report = generate_speed_reading_report(scores)
+
+        scores_for_db = {
+            "wpm": scores["wpm"],
+            "speed_label": scores["speed_label"],
+            "comprehension_pct": scores["comprehension_pct"],
+            "comp_level": scores["comp_level"],
+            "effective_score": scores["effective_score"],
+            "eff_level": scores["eff_level"],
+            "profile": scores["profile"],
+            "reading_time_seconds": scores["reading_time_seconds"],
+            "word_count": scores["word_count"],
+            "correct": scores["correct"],
+            "total": scores["total"],
+            "kademe": kademe,
+        }
+
+        save_test_result_to_db(
+            st.session_state.student_id, t_name,
+            answers, scores_for_db, report,
+        )
+
+        st.session_state.last_report = report
+        st.session_state.page = "success_screen"
+        st.session_state._scroll_top = True
+        st.rerun(scope="app")
+
+
 def _finish_akademik_test(t_name):
     """Akademik analiz testini puanla, rapor üret ve veritabanına kaydet."""
     answers = st.session_state.akd_answers
