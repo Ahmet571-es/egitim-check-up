@@ -5,10 +5,20 @@ import time
 import random
 from db_utils import check_test_completed, save_test_result_to_db, get_completed_tests
 from d2_engine import (
-    D2_CONFIG, generate_d2_test, generate_practice_row,
+    D2_CONFIG, generate_d2_test, generate_practice_row as d2_generate_practice_row,
     render_symbol_html, render_row_legend_html, render_timer_js,
     calculate_d2, generate_d2_report,
-    get_time_per_row, D2_CARD_CSS, render_symbol_label,
+    get_time_per_row as d2_get_time_per_row, D2_CARD_CSS, render_symbol_label as d2_render_symbol_label,
+)
+from b2_engine import (
+    B2_CONFIG, generate_b2_test, generate_practice_row as b2_generate_practice_row,
+    calculate_b2, generate_b2_report,
+    get_time_per_row as b2_get_time_per_row,
+    B2_CSS, render_symbol_label as b2_render_symbol_label,
+    render_instructions_html as b2_render_instructions_html,
+    render_practice_instructions_html as b2_render_practice_instructions_html,
+    render_full_analysis_html as b2_render_full_analysis_html,
+    render_target_examples as b2_render_target_examples,
 )
 from akademik_engine import (
     get_akademik_sections, get_total_questions,
@@ -106,6 +116,13 @@ TEST_META = {
         "duration": "~5 dk",
         "questions": 280,
         "desc": "Dikkat ve konsantrasyon kapasiteni ölç. Zamanlı performans testi.",
+    },
+    "B2 Dikkat Testi": {
+        "icon": "👁️",
+        "color": "#2980B9",
+        "duration": "~7 dk",
+        "questions": 450,
+        "desc": "Seçici dikkat ve konsantrasyon ölçümü. 'p' harfi hedefli, nokta bazlı zamanlı test.",
     },
     "Akademik Analiz Testi": {
         "icon": "📚",
@@ -438,7 +455,7 @@ def _render_test_questions():
                 unsafe_allow_html=True,
             )
 
-            practice = generate_practice_row()
+            practice = d2_generate_practice_row()
 
             with st.form("d2_practice"):
                 D2_COLS = 5
@@ -539,6 +556,144 @@ def _render_test_questions():
 
             if st.session_state.d2_row_start:
                 if time.time() - st.session_state.d2_row_start > time_per_row:
+                    st.warning("⏰ Süre doldu! Lütfen satırı gönderin.")
+
+    # ========================================
+    # TİP: B2 DİKKAT TESTİ (b2dikkat formatı)
+    # ========================================
+    elif q_type == "b2_timed":
+        current_row = st.session_state.b2_current_row
+        time_per_row = st.session_state.get("b2_time_per_row", B2_CONFIG["time_per_row"])
+        student_age = st.session_state.get("student_age", 15)
+
+        # B2 minimalist CSS
+        st.markdown(B2_CSS, unsafe_allow_html=True)
+
+        # ---- ALIŞTIRMA SAYFASI ----
+        if not st.session_state.b2_practice_done:
+            # Alıştırma yönergeleri (b2dikkat tarzı)
+            st.markdown(
+                b2_render_practice_instructions_html(),
+                unsafe_allow_html=True,
+            )
+
+            practice = b2_generate_practice_row()
+
+            with st.form("b2_practice"):
+                B2_COLS = 10
+                for sub_r in range((len(practice) + B2_COLS - 1) // B2_COLS):
+                    cols = st.columns(B2_COLS)
+                    for c in range(B2_COLS):
+                        idx = sub_r * B2_COLS + c
+                        if idx < len(practice):
+                            with cols[c]:
+                                st.markdown(
+                                    b2_render_symbol_label(practice[idx]),
+                                    unsafe_allow_html=True,
+                                )
+                                st.checkbox(
+                                    "✓", key=f"b2p_{idx}",
+                                    label_visibility="collapsed",
+                                )
+
+                if st.form_submit_button("ALIŞTIRMAYI KONTROL ET", type="primary"):
+                    # Alıştırma kontrolü — doğru/yanlış göster
+                    correct = 0
+                    wrong = 0
+                    missed = 0
+                    for i, sym in enumerate(practice):
+                        sel = st.session_state.get(f"b2p_{i}", False)
+                        if sym["is_target"] and sel:
+                            correct += 1
+                        elif sym["is_target"] and not sel:
+                            missed += 1
+                        elif not sym["is_target"] and sel:
+                            wrong += 1
+
+                    st.session_state.b2_practice_done = True
+                    st.session_state.b2_current_row = 0
+                    st.session_state.b2_row_start = time.time()
+                    st.session_state._scroll_top = True
+                    st.rerun()
+
+        # ---- ANA TEST SATIRLARI ----
+        elif 0 <= current_row < B2_CONFIG["rows"]:
+            row_symbols = st.session_state.b2_rows[current_row]
+
+            # Satır numarası (b2dikkat tarzı — minimal üst bar)
+            st.progress((current_row + 1) / B2_CONFIG["rows"])
+
+            if st.session_state.b2_row_start is None:
+                st.session_state.b2_row_start = time.time()
+
+            # Zamanlayıcı (b2dikkat tarzı — gizli değil ama minimal)
+            components.html(
+                render_timer_js(time_per_row, f"b2_{current_row}"),
+                height=55,
+            )
+
+            # Sembol satırı — 10'lu sütunlar halinde (b2dikkat tarzı inline)
+            with st.form(f"b2_row_{current_row}"):
+                # Satır numarası göster
+                st.markdown(
+                    f'<div style="color:#999;font-size:14px;font-weight:700;'
+                    f'margin-bottom:4px;">{current_row + 1}</div>',
+                    unsafe_allow_html=True,
+                )
+
+                B2_COLS = 10
+                for sub_r in range(
+                    (len(row_symbols) + B2_COLS - 1) // B2_COLS
+                ):
+                    cols = st.columns(B2_COLS)
+                    for c in range(B2_COLS):
+                        idx = sub_r * B2_COLS + c
+                        if idx < len(row_symbols):
+                            with cols[c]:
+                                st.markdown(
+                                    b2_render_symbol_label(row_symbols[idx]),
+                                    unsafe_allow_html=True,
+                                )
+                                st.checkbox(
+                                    "✓",
+                                    key=f"b2r{current_row}_s{idx}",
+                                    label_visibility="collapsed",
+                                )
+
+                submitted = st.form_submit_button(
+                    "Satırı Gönder ➡️", type="primary"
+                )
+
+            if submitted:
+                elapsed = time.time() - (
+                    st.session_state.b2_row_start or time.time()
+                )
+                selected = [
+                    st.session_state.get(
+                        f"b2r{current_row}_s{i}", False
+                    )
+                    for i in range(len(row_symbols))
+                ]
+
+                st.session_state.b2_row_results.append(
+                    {
+                        "symbols": row_symbols,
+                        "selected": selected,
+                        "elapsed_time": elapsed,
+                    }
+                )
+
+                next_row = current_row + 1
+                if next_row >= B2_CONFIG["rows"]:
+                    _finish_b2_test(t_name)
+                else:
+                    st.session_state.b2_current_row = next_row
+                    st.session_state.b2_row_start = time.time()
+                    st.session_state._scroll_top = True
+                    st.rerun()
+
+            if st.session_state.b2_row_start:
+                if time.time() - st.session_state.b2_row_start > time_per_row:
                     st.warning("⏰ Süre doldu! Lütfen satırı gönderin.")
 
     # ========================================
@@ -956,6 +1111,7 @@ def app():
         "Çoklu Zeka Testi",
         "Holland Mesleki İlgi Envanteri",
         "D2 Dikkat Testi",
+        "B2 Dikkat Testi",
         "Akademik Analiz Testi",
         "Hızlı Okuma Testi",
     ]
@@ -1122,7 +1278,19 @@ def app():
                             st.session_state.d2_row_results = []
                             st.session_state.d2_practice_done = False
                             st.session_state.d2_row_start = None
-                            st.session_state.d2_time_per_row = get_time_per_row(student_age)
+                            st.session_state.d2_time_per_row = d2_get_time_per_row(student_age)
+
+                        elif "B2 Dikkat" in test:
+                            seed = hash(str(st.session_state.student_id) + str(time.time()))
+                            student_age = st.session_state.get("student_age", 15)
+                            st.session_state.current_test_data = {"type": "b2_timed"}
+                            st.session_state.b2_rows = generate_b2_test(seed=seed)
+                            st.session_state.b2_current_row = -1   # -1 = yönerge, -2 = alıştırma
+                            st.session_state.b2_row_results = []
+                            st.session_state.b2_practice_done = False
+                            st.session_state.b2_instructions_done = False
+                            st.session_state.b2_row_start = None
+                            st.session_state.b2_time_per_row = b2_get_time_per_row(student_age)
 
                         elif "Akademik Analiz" in test:
                             student_grade = st.session_state.get("student_grade")
@@ -1186,6 +1354,14 @@ def app():
         if "last_report" in st.session_state and st.session_state.last_report:
             with st.expander("📋 Raporunu Görüntüle", expanded=True):
                 st.markdown(st.session_state.last_report)
+
+        # B2 Dikkat Testi — Satır Bazlı Hata Analizi
+        if st.session_state.get("b2_analysis_html"):
+            with st.expander("🔍 Satır Bazlı Hata Analizi", expanded=True):
+                st.markdown(
+                    st.session_state.b2_analysis_html,
+                    unsafe_allow_html=True,
+                )
 
         st.markdown("---")
         c1, c2 = st.columns(2)
@@ -1267,7 +1443,7 @@ def app():
             # --- D2 TESTİ İÇİN YAŞA GÖRE SÜRE BİLGİSİ ---
             if "D2 Dikkat" in t_name:
                 student_age = st.session_state.get("student_age", 15)
-                my_time = get_time_per_row(student_age)
+                my_time = d2_get_time_per_row(student_age)
                 
                 st.markdown(f"""
                 <div style="background: #FFF8E1; border: 1px solid #FFD54F; border-radius: 12px; 
@@ -1303,6 +1479,15 @@ def app():
                     </table>
                 </div>
                 """, unsafe_allow_html=True)
+
+            # --- B2 TESTİ İÇİN YAŞA GÖRE SÜRE BİLGİSİ (b2dikkat formatı) ---
+            if "B2 Dikkat" in t_name:
+                student_age = st.session_state.get("student_age", 15)
+                my_time = b2_get_time_per_row(student_age)
+                st.markdown(
+                    b2_render_instructions_html(my_time, student_age),
+                    unsafe_allow_html=True,
+                )
             
             c1, c2 = st.columns(2)
             
@@ -1390,6 +1575,68 @@ def _finish_d2_test(t_name):
         st.session_state.page = "success_screen"
         st.session_state._scroll_top = True
         st.rerun(scope="app")  # Fragment'tan çık, tam sayfa geçişi
+
+
+# ============================================================
+# B2 TEST BİTİRME FONKSİYONU
+# ============================================================
+def _finish_b2_test(t_name):
+    """B2 testini puanla, rapor üret, hata analizi ekle ve veritabanına kaydet."""
+    row_results = st.session_state.b2_row_results
+
+    with st.spinner("📊 B2 sonuçların hesaplanıyor..."):
+        scores = calculate_b2(row_results, time_per_row=st.session_state.get("b2_time_per_row"))
+        report = generate_b2_report(scores)
+
+        # Hata analizi HTML'ini rapora ekle
+        analysis_html = b2_render_full_analysis_html(scores)
+
+        scores_for_db = {
+            "TN": scores["TN"], "E1": scores["E1"],
+            "E2": scores["E2"], "E": scores["E"],
+            "TN_E": scores["TN_E"], "CP": scores["CP"],
+            "FR": scores["FR"],
+            "hit_rate": scores["hit_rate"],
+            "error_pct": scores["error_pct"],
+            "cp_pct": scores["cp_pct"],
+            "level": scores["level"],
+            "balance": scores["balance"],
+            "consistency": scores["consistency"],
+            "row_performances": scores["row_performances"],
+            "row_details_summary": [
+                {
+                    "row_num": d["row_num"],
+                    "correct": d["correct"],
+                    "missed": d["missed"],
+                    "wrong": d["wrong"],
+                    "blank": d["blank"],
+                    "cp": d["cp"],
+                }
+                for d in scores["row_details"]
+            ],
+            "student_age": st.session_state.get("student_age"),
+            "time_per_row": st.session_state.get("b2_time_per_row", B2_CONFIG["time_per_row"]),
+        }
+
+        raw_answers = {
+            f"row_{i}": {
+                "selected": r["selected"],
+                "elapsed_time": round(r["elapsed_time"], 2),
+            }
+            for i, r in enumerate(row_results)
+        }
+
+        save_test_result_to_db(
+            st.session_state.student_id, t_name,
+            raw_answers, scores_for_db, report,
+        )
+
+        # Hata analizi HTML'ini session'a kaydet (success ekranında göstermek için)
+        st.session_state.b2_analysis_html = analysis_html
+        st.session_state.last_report = report
+        st.session_state.page = "success_screen"
+        st.session_state._scroll_top = True
+        st.rerun(scope="app")
 
 
 # ============================================================
