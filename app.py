@@ -3,10 +3,8 @@ import time
 import os
 import base64
 
-# DÜZELTME: repair_database de import edildi (Supabase uyumu)
 from db_utils import init_db, login_student, register_student, reset_student_password, repair_database
 
-# --- SAYFA YAPILANDIRMASI ---
 st.set_page_config(
     page_title="EĞİTİM CHECK UP",
     page_icon="🎓",
@@ -14,21 +12,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# =========================================================
-# 🛠️ VERİTABANI BAŞLATMA
-# =========================================================
 init_db()
 
-# =========================================================
-# 🎨 LOGO YÜKLEME FONKSİYONU
-# =========================================================
 @st.cache_data
 def get_logo_base64():
-    """
-    Logo dosyasını base64 formatında döndürür.
-    Proje kök dizininde 'logo.png' veya 'logo.jpeg' arar.
-    Bulamazsa None döner.
-    """
     for fname in ["logo.png", "logo.jpeg", "logo.jpg", "assets/logo.png", "assets/logo.jpeg"]:
         if os.path.exists(fname):
             with open(fname, "rb") as f:
@@ -40,371 +27,505 @@ def get_logo_base64():
 
 
 # =========================================================
-# 🎨 MERKEZ TASARIM SİSTEMİ (CSS)
+# 🎨 PREMIUM TASARIM SİSTEMİ
 # =========================================================
 st.markdown("""
 <style>
-    /* ========== GENEL SIFIRLAMA ========== */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+    :root {
+        --navy: #0F1B2D;
+        --blue: #2563EB;
+        --blue-light: #3B82F6;
+        --cyan: #06B6D4;
+        --red: #DC2626;
+        --red-soft: #EF4444;
+        --gold: #F59E0B;
+        --emerald: #10B981;
+        --surface: #FFFFFF;
+        --surface-alt: #F8FAFC;
+        --border: #E2E8F0;
+        --text-primary: #0F172A;
+        --text-secondary: #475569;
+        --text-muted: #94A3B8;
+        --radius: 14px;
+        --shadow-sm: 0 1px 3px rgba(15,23,42,0.06);
+        --shadow-md: 0 4px 16px rgba(15,23,42,0.08);
+        --shadow-lg: 0 12px 40px rgba(15,23,42,0.12);
+    }
+
     .stApp {
-        background: linear-gradient(135deg, #F4F6F9 0%, #E8EDF3 50%, #F4F6F9 100%);
+        background: var(--surface-alt) !important;
+        font-family: 'DM Sans', -apple-system, sans-serif !important;
     }
-    
-    /* ========== BUTON STİLLERİ ========== */
-    .stButton > button {
-        border-radius: 10px;
-        height: 3em;
-        font-weight: 600;
-        width: 100%;
-        transition: all 0.3s ease;
-        border: none;
-        letter-spacing: 0.3px;
+    #MainMenu, footer, header { visibility: hidden; }
+    .stDeployButton { display: none; }
+
+    /* ===== ANİMASYONLAR ===== */
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes shimmer {
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
     }
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #1B2A4A 0%, #2E86C1 100%);
-        color: white;
+    @keyframes pulse-ring {
+        0%, 100% { transform: scale(0.95); opacity: 0.4; }
+        50% { transform: scale(1.05); opacity: 0.15; }
     }
-    .stButton > button[kind="secondary"] {
-        background: #ffffff;
-        color: #1B2A4A;
-        border: 2px solid #1B2A4A;
+    @keyframes gradient-shift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
     }
-    
-    /* ========== AUTH CONTAINER ========== */
-    .auth-container {
-        background: #ffffff;
-        border: 1px solid #E0E4EA;
-        padding: 40px 35px;
-        border-radius: 20px;
-        max-width: 600px;
-        margin: 0 auto;
-        box-shadow: 0 8px 30px rgba(27, 42, 74, 0.08);
-        position: relative;
-        overflow: hidden;
-    }
-    .auth-container::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #1B2A4A, #C0392B, #2E86C1);
-    }
-    
-    /* ========== LOGO VE BAŞLIK ========== */
-    .brand-area {
+
+    /* ===== HERO ===== */
+    .hero-container {
         text-align: center;
         padding: 20px 0 10px 0;
+        animation: fadeUp 0.7s ease-out;
     }
-    .brand-area img {
-        max-height: 90px;
-        margin-bottom: 8px;
+    .hero-logo-wrap {
+        position: relative;
+        display: inline-block;
+        margin-bottom: 10px;
     }
-    .brand-title {
+    .hero-logo-wrap::before {
+        content: "";
+        position: absolute;
+        inset: -14px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(37,99,235,0.06) 0%, transparent 70%);
+        animation: pulse-ring 4s ease-in-out infinite;
+    }
+    .hero-title {
+        font-family: 'Outfit', sans-serif;
         font-size: 2.6rem;
         font-weight: 900;
-        color: #1B2A4A;
-        letter-spacing: 2px;
+        letter-spacing: 3px;
         text-transform: uppercase;
         margin: 0;
-        line-height: 1.2;
+        line-height: 1.15;
+        background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 50%, var(--navy) 100%);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: gradient-shift 6s ease infinite;
     }
-    .brand-subtitle {
-        font-size: 1.05rem;
-        color: #C0392B;
-        font-weight: 500;
-        margin-top: 4px;
-        letter-spacing: 0.5px;
+    .hero-subtitle {
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.92rem;
+        color: var(--text-secondary);
+        font-weight: 400;
+        margin-top: 5px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
     }
-    
-    /* ========== DIVIDER ========== */
-    .brand-divider {
+    .hero-divider {
         height: 3px;
-        background: linear-gradient(90deg, transparent, #1B2A4A, #C0392B, #1B2A4A, transparent);
-        margin: 15px auto 25px auto;
-        max-width: 400px;
+        background: linear-gradient(90deg, transparent 5%, var(--blue) 30%, var(--red-soft) 50%, var(--gold) 70%, transparent 95%);
+        margin: 18px auto 26px auto;
+        max-width: 340px;
         border-radius: 2px;
+        opacity: 0.6;
     }
-    
-    /* ========== FORM STİLLERİ ========== */
-    .stTextInput > div > div > input {
+
+    /* ===== AUTH CARD ===== */
+    .auth-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        max-width: 560px;
+        margin: 0 auto;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        animation: fadeUp 0.5s ease-out 0.1s both;
+        position: relative;
+    }
+    .auth-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--blue), var(--cyan), var(--blue-light));
+        background-size: 200% auto;
+        animation: shimmer 3s linear infinite;
+    }
+    .auth-card-body { padding: 32px 28px 24px; }
+
+    /* ===== TABS ===== */
+    .auth-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-alt);
+    }
+    .auth-tab {
+        flex: 1;
+        padding: 14px 0;
+        text-align: center;
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    .auth-tab.active {
+        color: var(--blue);
+        background: var(--surface);
+    }
+    .auth-tab.active::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 20%; right: 20%;
+        height: 3px;
+        background: var(--blue);
+        border-radius: 3px 3px 0 0;
+    }
+    .auth-tab-icon { display: block; font-size: 1.2rem; margin-bottom: 2px; }
+
+    /* ===== SECTION TITLE ===== */
+    .section-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0 0 4px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .section-title .icon {
+        width: 36px; height: 36px;
         border-radius: 10px;
-        border: 1.5px solid #D5DAE1;
-        padding: 10px 14px;
-        font-size: 0.95rem;
-        transition: border-color 0.3s ease;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.05rem;
+        flex-shrink: 0;
     }
-    .stTextInput > div > div > input:focus {
-        border-color: #2E86C1;
-        box-shadow: 0 0 0 3px rgba(46, 134, 193, 0.15);
+    .section-title .icon.blue { background: rgba(37,99,235,0.08); }
+    .section-title .icon.green { background: rgba(16,185,129,0.08); }
+    .section-title .icon.red { background: rgba(220,38,38,0.08); }
+    .section-desc {
+        font-size: 0.86rem;
+        color: var(--text-muted);
+        margin: 0 0 20px 0;
+        line-height: 1.5;
     }
+
+    /* ===== INFO BOX ===== */
+    .info-box {
+        background: linear-gradient(135deg, rgba(37,99,235,0.03) 0%, rgba(6,182,212,0.03) 100%);
+        border: 1px solid rgba(37,99,235,0.1);
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        animation: fadeIn 0.5s ease-out 0.2s both;
+    }
+    .info-box-icon { font-size: 1.1rem; margin-top: 1px; flex-shrink: 0; }
+    .info-box-text { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+    .info-box-text b { color: var(--blue); font-weight: 600; }
+
+    /* ===== FORM INPUTS ===== */
+    .stTextInput > div > div > input,
     .stNumberInput > div > div > input {
-        border-radius: 10px;
+        border-radius: 12px !important;
+        border: 1.5px solid var(--border) !important;
+        padding: 11px 15px !important;
+        font-size: 0.93rem !important;
+        font-family: 'DM Sans', sans-serif !important;
+        background: var(--surface) !important;
+        transition: all 0.25s ease !important;
+        color: var(--text-primary) !important;
+    }
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus {
+        border-color: var(--blue) !important;
+        box-shadow: 0 0 0 4px rgba(37,99,235,0.08) !important;
+    }
+    .stTextInput > div > div > input::placeholder {
+        color: var(--text-muted) !important;
     }
     .stSelectbox > div > div {
-        border-radius: 10px;
+        border-radius: 12px !important;
+        border: 1.5px solid var(--border) !important;
     }
-    
-    /* ========== VERSION BADGE ========== */
+    .stSelectbox > div > div:focus-within {
+        border-color: var(--blue) !important;
+        box-shadow: 0 0 0 4px rgba(37,99,235,0.08) !important;
+    }
+    .stNumberInput button {
+        border-radius: 8px !important;
+        border: 1.5px solid var(--border) !important;
+        background: var(--surface-alt) !important;
+    }
+    .stNumberInput button:hover {
+        border-color: var(--blue) !important;
+    }
+
+    /* ===== BUTTONS ===== */
+    .stButton > button {
+        border-radius: 12px !important;
+        padding: 11px 24px !important;
+        font-weight: 600 !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-size: 0.92rem !important;
+        width: 100% !important;
+        transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important;
+        border: none !important;
+        letter-spacing: 0.4px !important;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: var(--shadow-md) !important;
+    }
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%) !important;
+        color: white !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        box-shadow: 0 8px 24px rgba(37,99,235,0.3) !important;
+    }
+    .stButton > button[kind="secondary"] {
+        background: var(--surface) !important;
+        color: var(--text-secondary) !important;
+        border: 1.5px solid var(--border) !important;
+    }
+    .stButton > button[kind="secondary"]:hover {
+        border-color: var(--blue) !important;
+        color: var(--blue) !important;
+    }
+
+    /* ===== FORM SUBMIT ===== */
+    .stFormSubmitButton > button {
+        border-radius: 12px !important;
+        padding: 13px 28px !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 0.98rem !important;
+        letter-spacing: 1px !important;
+        text-transform: uppercase !important;
+        background: linear-gradient(135deg, var(--blue) 0%, #1D4ED8 100%) !important;
+        color: white !important;
+        border: none !important;
+        transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important;
+        width: 100% !important;
+    }
+    .stFormSubmitButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 10px 30px rgba(37,99,235,0.35) !important;
+    }
+
+    /* ===== SEPARATOR ===== */
+    .sep-line {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 18px 0;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-family: 'Outfit', sans-serif;
+    }
+    .sep-line::before, .sep-line::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+    }
+
+    /* ===== FEATURE CHIPS ===== */
+    .feature-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 20px;
+        animation: fadeIn 0.8s ease-out 0.5s both;
+    }
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        font-family: 'Outfit', sans-serif;
+        background: var(--surface);
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
+        transition: all 0.2s ease;
+    }
+    .chip:hover {
+        border-color: var(--blue);
+        color: var(--blue);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* ===== VERSION BADGE ===== */
     .version-badge {
         position: fixed;
-        bottom: 10px;
-        right: 15px;
-        background: rgba(27, 42, 74, 0.08);
-        color: #1B2A4A;
+        bottom: 10px; right: 14px;
+        background: var(--surface);
+        color: var(--text-muted);
         padding: 4px 12px;
         border-radius: 20px;
-        font-size: 0.7rem;
+        font-size: 0.68rem;
+        font-family: 'Outfit', sans-serif;
         letter-spacing: 0.5px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border);
+        z-index: 999;
     }
-    
-    /* ========== SIDEBAR İYİLEŞTİRME ========== */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1B2A4A 0%, #2C3E6B 100%);
+
+    /* ===== BG PATTERN ===== */
+    .bg-pattern {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        pointer-events: none;
+        z-index: -1;
+        background-image:
+            radial-gradient(circle at 15% 15%, rgba(37,99,235,0.04) 0%, transparent 50%),
+            radial-gradient(circle at 85% 85%, rgba(220,38,38,0.03) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(6,182,212,0.02) 0%, transparent 40%);
     }
-    /* Tüm metin beyaz */
-    [data-testid="stSidebar"] * {
-        color: #FFFFFF !important;
-    }
-    /* Expander başlıkları */
+
+    /* ===== SIDEBAR ===== */
+    [data-testid="stSidebar"] { background: linear-gradient(180deg, var(--navy) 0%, #1E3A5F 100%); }
+    [data-testid="stSidebar"] * { color: #FFFFFF !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] {
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.15);
-        border-radius: 8px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
         margin-bottom: 8px;
     }
-    [data-testid="stSidebar"] [data-testid="stExpander"] summary {
+    [data-testid="stSidebar"] .stButton > button {
+        background: rgba(255,255,255,0.1) !important;
         color: #FFFFFF !important;
-        font-weight: 600;
-    }
-    [data-testid="stSidebar"] [data-testid="stExpander"] svg {
-        fill: #FFFFFF !important;
-        stroke: #FFFFFF !important;
-    }
-    /* Butonlar */
-    [data-testid="stSidebar"] .stButton > button,
-    [data-testid="stSidebar"] .stDownloadButton > button {
-        background: rgba(255,255,255,0.15) !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(255,255,255,0.3) !important;
-    }
-    [data-testid="stSidebar"] .stButton > button:hover,
-    [data-testid="stSidebar"] .stDownloadButton > button:hover {
-        background: rgba(255,255,255,0.25) !important;
-    }
-    /* Bilgi/uyarı kutuları */
-    [data-testid="stSidebar"] [data-testid="stAlert"] {
-        background: rgba(255,255,255,0.10) !important;
         border: 1px solid rgba(255,255,255,0.2) !important;
     }
-    [data-testid="stSidebar"] [data-testid="stAlert"] p,
-    [data-testid="stSidebar"] [data-testid="stAlert"] span {
-        color: #FFFFFF !important;
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background: rgba(255,255,255,0.2) !important;
     }
-    /* Checkbox */
-    [data-testid="stSidebar"] [data-testid="stCheckbox"] label span {
-        color: #FFFFFF !important;
+    [data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.15) !important; }
+
+    /* ===== FIELD GROUP TITLE ===== */
+    .field-group-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
     }
-    /* Multiselect */
-    [data-testid="stSidebar"] [data-testid="stMultiSelect"] label,
-    [data-testid="stSidebar"] [data-testid="stMultiSelect"] span {
-        color: #FFFFFF !important;
-    }
-    [data-testid="stSidebar"] [data-testid="stMultiSelect"] > div > div {
-        background: rgba(255,255,255,0.1) !important;
-        border-color: rgba(255,255,255,0.3) !important;
-    }
-    /* Caption */
-    [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
-        color: rgba(255,255,255,0.7) !important;
-    }
-    [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * {
-        color: rgba(255,255,255,0.7) !important;
-    }
-    /* Ayırıcı çizgi */
-    [data-testid="stSidebar"] hr {
-        border-color: rgba(255,255,255,0.2) !important;
-    }
-    
-    /* ========== ANİMASYONLAR ========== */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    .animate-in {
-        animation: fadeInUp 0.6s ease-out;
-    }
-    
-    /* ========== GİZLİ STREAMLIT ELEMANLARI ========== */
-    #MainMenu { visibility: hidden; }
-    footer { visibility: hidden; }
-    header { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown('<div class="bg-pattern"></div>', unsafe_allow_html=True)
 
-# --- SESSION STATE (OTURUM DEĞİŞKENLERİ) ---
-if 'role' not in st.session_state:
-    st.session_state.role = None
-if 'student_id' not in st.session_state:
-    st.session_state.student_id = None
-if 'student_name' not in st.session_state:
-    st.session_state.student_name = None
-if 'login_phase' not in st.session_state:
-    st.session_state.login_phase = 1
-if 'auth_mode' not in st.session_state:
-    st.session_state.auth_mode = 'register'
+# --- SESSION STATE ---
+for key, default in [('role', None), ('student_id', None), ('student_name', None),
+                     ('login_phase', 1), ('auth_mode', 'register')]:
+    if key not in st.session_state:
+        st.session_state[key] = default
 
+def go_to_login(): st.session_state.auth_mode = 'login'
+def go_to_register(): st.session_state.auth_mode = 'register'
+def go_to_teacher(): st.session_state.auth_mode = 'teacher'
+def go_to_forgot_password(): st.session_state.auth_mode = 'forgot_password'
 
-# --- NAVİGASYON FONKSİYONLARI ---
-def go_to_login():
-    st.session_state.auth_mode = 'login'
-
-def go_to_register():
-    st.session_state.auth_mode = 'register'
-
-def go_to_teacher():
-    st.session_state.auth_mode = 'teacher'
-
-def go_to_forgot_password():
-    st.session_state.auth_mode = 'forgot_password'
-
-
-# --- ÖĞRETMEN ŞİFRESİ ALMA FONKSİYONU ---
 def get_teacher_password():
-    """Öğretmen şifresini güvenli şekilde alır."""
     try:
         if "teacher_password" in st.secrets:
             return st.secrets["teacher_password"]
     except Exception:
         pass
-    env_pw = os.getenv("TEACHER_PASSWORD")
-    if env_pw:
-        return env_pw
-    return None
+    return os.getenv("TEACHER_PASSWORD")
 
 
 # =========================================================
-# 🏠 MARKA BAŞLIK ALANI
+# HERO HEADER
 # =========================================================
-def render_brand_header():
-    """Logo + başlık + alt başlık alanını oluşturur."""
+def render_hero_header():
     logo_b64 = get_logo_base64()
+    phoenix_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="78" height="78"><defs><linearGradient id="wg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#DC2626"/><stop offset="50%" stop-color="#EF4444"/><stop offset="100%" stop-color="#F59E0B"/></linearGradient><linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#0F1B2D"/><stop offset="100%" stop-color="#2563EB"/></linearGradient><linearGradient id="tg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#EF4444"/><stop offset="40%" stop-color="#F59E0B"/><stop offset="100%" stop-color="#FBBF24"/></linearGradient><filter id="gl"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><ellipse cx="100" cy="95" rx="55" ry="60" fill="none" stroke="#F59E0B" stroke-width="1.5" opacity="0.15"/><path d="M100,85 Q60,40 30,55 Q45,30 65,25 Q50,15 70,10 Q80,25 85,45 Q90,60 100,85Z" fill="url(#wg)" opacity="0.9" filter="url(#gl)"/><path d="M100,85 Q140,40 170,55 Q155,30 135,25 Q150,15 130,10 Q120,25 115,45 Q110,60 100,85Z" fill="url(#wg)" opacity="0.9" filter="url(#gl)"/><path d="M100,60 Q90,80 88,110 Q90,135 100,155 Q110,135 112,110 Q110,80 100,60Z" fill="url(#bg)"/><circle cx="100" cy="58" r="14" fill="url(#bg)"/><path d="M100,68 L96,75 L100,73 L104,75Z" fill="#F59E0B"/><circle cx="93" cy="55" r="2.5" fill="#FBBF24"/><circle cx="107" cy="55" r="2.5" fill="#FBBF24"/><circle cx="93.5" cy="55" r="1" fill="#0F1B2D"/><circle cx="107.5" cy="55" r="1" fill="#0F1B2D"/><path d="M100,44 Q97,32 100,22 Q103,32 100,44Z" fill="#EF4444" opacity="0.9"/><path d="M100,44 Q93,35 91,26 Q96,33 100,44Z" fill="#F59E0B" opacity="0.7"/><path d="M100,44 Q107,35 109,26 Q104,33 100,44Z" fill="#F59E0B" opacity="0.7"/><path d="M100,155 Q90,165 80,185 Q92,175 100,165Z" fill="url(#tg)" opacity="0.8"/><path d="M100,155 Q100,170 100,190 Q100,175 100,165Z" fill="url(#tg)" opacity="0.9"/><path d="M100,155 Q110,165 120,185 Q108,175 100,165Z" fill="url(#tg)" opacity="0.8"/><circle cx="32" cy="53" r="2" fill="#F59E0B" opacity="0.5"/><circle cx="168" cy="53" r="2" fill="#F59E0B" opacity="0.5"/></svg>'
 
-    # Inline Anka Kuşu SVG — harici dosya gerektirmez
-    phoenix_svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="90" height="90">
-      <defs>
-        <linearGradient id="wing_grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#C0392B"/>
-          <stop offset="50%" stop-color="#E74C3C"/>
-          <stop offset="100%" stop-color="#F39C12"/>
-        </linearGradient>
-        <linearGradient id="body_grad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#1B2A4A"/>
-          <stop offset="100%" stop-color="#2E86C1"/>
-        </linearGradient>
-        <linearGradient id="tail_grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#E74C3C"/>
-          <stop offset="40%" stop-color="#F39C12"/>
-          <stop offset="100%" stop-color="#F1C40F"/>
-        </linearGradient>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="2" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-      <!-- Alev halesi -->
-      <ellipse cx="100" cy="95" rx="55" ry="60" fill="none" stroke="#F39C12" stroke-width="1.5" opacity="0.2"/>
-      <!-- Sol kanat -->
-      <path d="M100,85 Q60,40 30,55 Q45,30 65,25 Q50,15 70,10 Q80,25 85,45 Q90,60 100,85Z"
-            fill="url(#wing_grad)" opacity="0.9" filter="url(#glow)"/>
-      <!-- Sağ kanat -->
-      <path d="M100,85 Q140,40 170,55 Q155,30 135,25 Q150,15 130,10 Q120,25 115,45 Q110,60 100,85Z"
-            fill="url(#wing_grad)" opacity="0.9" filter="url(#glow)"/>
-      <!-- Gövde -->
-      <path d="M100,60 Q90,80 88,110 Q90,135 100,155 Q110,135 112,110 Q110,80 100,60Z"
-            fill="url(#body_grad)"/>
-      <!-- Baş -->
-      <circle cx="100" cy="58" r="14" fill="url(#body_grad)"/>
-      <!-- Gaga -->
-      <path d="M100,68 L96,75 L100,73 L104,75Z" fill="#F39C12"/>
-      <!-- Gözler -->
-      <circle cx="93" cy="55" r="2.5" fill="#F1C40F"/>
-      <circle cx="107" cy="55" r="2.5" fill="#F1C40F"/>
-      <circle cx="93.5" cy="55" r="1" fill="#1B2A4A"/>
-      <circle cx="107.5" cy="55" r="1" fill="#1B2A4A"/>
-      <!-- Tepe tüyü / alev -->
-      <path d="M100,44 Q97,32 100,22 Q103,32 100,44Z" fill="#E74C3C" opacity="0.9"/>
-      <path d="M100,44 Q93,35 91,26 Q96,33 100,44Z" fill="#F39C12" opacity="0.7"/>
-      <path d="M100,44 Q107,35 109,26 Q104,33 100,44Z" fill="#F39C12" opacity="0.7"/>
-      <!-- Kuyruk tüyleri -->
-      <path d="M100,155 Q90,165 80,185 Q92,175 100,165Z" fill="url(#tail_grad)" opacity="0.8"/>
-      <path d="M100,155 Q100,170 100,190 Q100,175 100,165Z" fill="url(#tail_grad)" opacity="0.9"/>
-      <path d="M100,155 Q110,165 120,185 Q108,175 100,165Z" fill="url(#tail_grad)" opacity="0.8"/>
-      <!-- Kanat ucu kıvılcımları -->
-      <circle cx="32" cy="53" r="2" fill="#F39C12" opacity="0.6"/>
-      <circle cx="168" cy="53" r="2" fill="#F39C12" opacity="0.6"/>
-      <circle cx="70" cy="12" r="1.5" fill="#E74C3C" opacity="0.5"/>
-      <circle cx="130" cy="12" r="1.5" fill="#E74C3C" opacity="0.5"/>
-    </svg>'''
+    logo_html = f'<img src="{logo_b64}" alt="Logo" style="max-height:78px;"/>' if logo_b64 else f'<div class="hero-logo-wrap">{phoenix_svg}</div>'
 
-    if logo_b64:
-        st.markdown(f"""
-            <div class="brand-area animate-in">
-                <img src="{logo_b64}" alt="Eğitim Check Up Logo" />
-            </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-            <div class="brand-area animate-in">
-                <div style="margin-bottom: 6px;">{phoenix_svg}</div>
-                <div class="brand-title">EĞİTİM CHECK UP</div>
-                <div class="brand-subtitle">Kişisel Eğitim & Kariyer Analiz Merkezi</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown('<div class="brand-divider"></div>', unsafe_allow_html=True)
+    st.markdown(f"""
+        <div class="hero-container">
+            {logo_html}
+            <div class="hero-title">Eğitim Check Up</div>
+            <div class="hero-subtitle">Kişisel Eğitim & Kariyer Analiz Merkezi</div>
+        </div>
+        <div class="hero-divider"></div>
+    """, unsafe_allow_html=True)
 
 
 # =========================================================
-# 🔐 ANA GİRİŞ SİSTEMİ
+# ANA GİRİŞ SİSTEMİ
 # =========================================================
 def main_auth_flow():
-    render_brand_header()
-    
+    render_hero_header()
+
     col1, col2, col3 = st.columns([1, 2, 1])
-    
     with col2:
-        # ---------------------------------------------------------
-        # 1. MOD: KAYIT OL
-        # ---------------------------------------------------------
-        if st.session_state.auth_mode == 'register':
-            st.markdown("<div class='auth-container animate-in'>", unsafe_allow_html=True)
-            st.markdown("#### 📝 Yeni Öğrenci Kaydı")
-            st.info("💡 Testlere katılmak için önce profilini oluştur. Sadece 1 dakika!")
-            
+        mode = st.session_state.auth_mode
+
+        # Tab navigation for register/login
+        if mode in ('register', 'login'):
+            reg_cls = "active" if mode == "register" else ""
+            log_cls = "active" if mode == "login" else ""
+            st.markdown(f"""
+                <div style="max-width:560px;margin:0 auto;">
+                <div class="auth-tabs" style="border-radius:20px 20px 0 0;border:1px solid var(--border);border-bottom:none;">
+                    <div class="auth-tab {reg_cls}">
+                        <span class="auth-tab-icon">📝</span>Kayıt Ol
+                    </div>
+                    <div class="auth-tab {log_cls}">
+                        <span class="auth-tab-icon">🔑</span>Giriş Yap
+                    </div>
+                </div></div>
+            """, unsafe_allow_html=True)
+
+        # ── KAYIT ──
+        if mode == 'register':
+            st.markdown('<div class="auth-card" style="border-radius:0 0 20px 20px;"><div class="auth-card-body">', unsafe_allow_html=True)
+            st.markdown("""
+                <div class="section-title"><div class="icon blue">📋</div>Yeni Öğrenci Kaydı</div>
+                <div class="section-desc">Testlere katılmak için profilini oluştur — sadece 1 dakika.</div>
+                <div class="info-box"><div class="info-box-icon">💡</div><div class="info-box-text">Tüm bilgilerin <b>gizli ve güvende</b> tutulur. Sonuçların sadece sana ve öğretmenine görünür.</div></div>
+            """, unsafe_allow_html=True)
+
             with st.form("register_form"):
-                name = st.text_input("👤 Ad Soyad", placeholder="Tam adını yaz...")
+                st.markdown('<div class="field-group-title">👤 Kişisel Bilgiler</div>', unsafe_allow_html=True)
+                name = st.text_input("Ad Soyad", placeholder="Tam adını yaz...", label_visibility="collapsed")
+
                 c1, c2, c3 = st.columns(3)
                 age = c1.number_input("🎂 Yaş", min_value=5, max_value=99, step=1, value=15)
                 grade = c2.selectbox("🎓 Sınıf", options=[5, 6, 7, 8, 9, 10, 11, 12], index=3)
                 gender = c3.selectbox("⚧ Cinsiyet", ["Kız", "Erkek"])
-                
-                st.markdown("---")
+
+                st.markdown('<div class="sep-line">Hesap Bilgileri</div>', unsafe_allow_html=True)
                 new_user = st.text_input("📧 E-posta Adresi", placeholder="ornek@email.com")
                 new_pw = st.text_input("🔒 Şifre Belirle", type="password", placeholder="En az 4 karakter")
-                secret_word = st.text_input(
-                    "🛡️ Gizli Kurtarma Kelimesi",
-                    placeholder="Şifreni unutursan bu kelime lazım olacak",
-                    help="Şifreni sıfırlamak istediğinde bu kelimeyi soracağız."
-                )
-                
-                submit = st.form_submit_button("🚀 Kayıt Ol", type="primary")
-                
+                secret_word = st.text_input("🛡️ Gizli Kurtarma Kelimesi", placeholder="Şifreni unutursan bu kelime lazım olacak", help="Şifreni sıfırlamak istediğinde bu kelimeyi soracağız.")
+
+                st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
+                submit = st.form_submit_button("🚀  Kayıt Ol", type="primary")
+
                 if submit:
                     import re
                     email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -413,12 +534,9 @@ def main_auth_flow():
                     elif len(new_pw) < 4:
                         st.warning("⚠️ Şifre en az 4 karakter olmalıdır.")
                     elif not re.match(email_pattern, new_user.strip()):
-                        st.warning("⚠️ Geçerli bir e-posta adresi giriniz. (Örn: ornek@email.com)")
+                        st.warning("⚠️ Geçerli bir e-posta adresi giriniz.")
                     else:
-                        success, result = register_student(
-                            name.title(), new_user.strip().lower(), new_pw,
-                            age, gender, secret_word.lower().strip(), grade
-                        )
+                        success, result = register_student(name.title(), new_user.strip().lower(), new_pw, age, gender, secret_word.lower().strip(), grade)
                         if success:
                             st.success("✅ Kayıt Başarılı! Giriş ekranına yönlendiriliyorsun...")
                             time.sleep(1.5)
@@ -426,28 +544,27 @@ def main_auth_flow():
                             st.rerun()
                         else:
                             st.error(result)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            link_col1, link_col2 = st.columns(2)
-            link_col1.button("🔑 Zaten hesabın var mı? GİRİŞ YAP", on_click=go_to_login)
-            link_col2.button("👨‍🏫 Öğretmen / Yönetici Girişi", on_click=go_to_teacher)
 
-        # ---------------------------------------------------------
-        # 2. MOD: ÖĞRENCİ GİRİŞİ
-        # ---------------------------------------------------------
-        elif st.session_state.auth_mode == 'login':
-            st.markdown("<div class='auth-container animate-in'>", unsafe_allow_html=True)
-            st.markdown("#### 🔑 Öğrenci Girişi")
-            st.caption("E-posta adresin ve şifrenle giriş yap.")
-            
+            st.markdown('</div></div>', unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            lc1, lc2 = st.columns(2)
+            lc1.button("🔑 Zaten hesabın var mı? Giriş Yap", on_click=go_to_login)
+            lc2.button("👨‍🏫 Öğretmen / Yönetici Girişi", on_click=go_to_teacher)
+
+        # ── GİRİŞ ──
+        elif mode == 'login':
+            st.markdown('<div class="auth-card" style="border-radius:0 0 20px 20px;"><div class="auth-card-body">', unsafe_allow_html=True)
+            st.markdown("""
+                <div class="section-title"><div class="icon green">🔓</div>Tekrar Hoşgeldin!</div>
+                <div class="section-desc">E-posta adresin ve şifrenle hemen testlerine devam et.</div>
+            """, unsafe_allow_html=True)
+
             with st.form("login_form"):
                 user = st.text_input("📧 E-posta Adresi", placeholder="E-posta adresini gir...")
                 pw = st.text_input("🔒 Şifre", type="password", placeholder="Şifreni gir...")
-                
-                submit = st.form_submit_button("Giriş Yap ➡️", type="primary")
-                
+                st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
+                submit = st.form_submit_button("Giriş Yap  ➡️", type="primary")
+
                 if submit:
                     if not user or not pw:
                         st.warning("⚠️ E-posta ve şifre boş bırakılamaz.")
@@ -465,29 +582,27 @@ def main_auth_flow():
                             st.rerun()
                         else:
                             st.error("❌ E-posta adresi veya şifre hatalı.")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            col_a, col_b = st.columns(2)
-            col_a.button("📝 Hesabın yok mu? KAYIT OL", on_click=go_to_register)
-            col_b.button("❓ Şifremi Unuttum", on_click=go_to_forgot_password)
 
-        # ---------------------------------------------------------
-        # 3. MOD: ŞİFREMİ UNUTTUM
-        # ---------------------------------------------------------
-        elif st.session_state.auth_mode == 'forgot_password':
-            st.markdown("<div class='auth-container animate-in'>", unsafe_allow_html=True)
-            st.markdown("#### 🔐 Şifre Sıfırlama")
-            st.info("Kayıt olurken belirlediğin gizli kurtarma kelimesini kullanarak yeni şifre belirleyebilirsin.")
-            
+            st.markdown('</div></div>', unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            lc1, lc2 = st.columns(2)
+            lc1.button("📝 Hesabın yok mu? Kayıt Ol", on_click=go_to_register)
+            lc2.button("❓ Şifremi Unuttum", on_click=go_to_forgot_password)
+
+        # ── ŞİFRE SIFIRLAMA ──
+        elif mode == 'forgot_password':
+            st.markdown('<div class="auth-card"><div class="auth-card-body">', unsafe_allow_html=True)
+            st.markdown("""
+                <div class="section-title"><div class="icon red">🔐</div>Şifre Sıfırlama</div>
+                <div class="section-desc">Gizli kurtarma kelimeni kullanarak yeni şifre belirle.</div>
+            """, unsafe_allow_html=True)
+
             with st.form("forgot_password_form"):
                 user = st.text_input("📧 E-posta Adresi", placeholder="Kayıtlı e-posta adresini gir...")
                 secret = st.text_input("🛡️ Gizli Kurtarma Kelimesi", type="password")
                 new_pw = st.text_input("🔒 Yeni Şifre Belirle", type="password")
-                
-                submit = st.form_submit_button("Şifremi Yenile ✅", type="primary")
-                
+                st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
+                submit = st.form_submit_button("Şifremi Yenile  ✅", type="primary")
                 if submit:
                     if not user or not secret or not new_pw:
                         st.warning("⚠️ Lütfen tüm alanları doldurunuz.")
@@ -496,81 +611,86 @@ def main_auth_flow():
                     else:
                         success, msg = reset_student_password(user.strip().lower(), secret.lower().strip(), new_pw)
                         if success:
-                            st.success("✅ Şifren güncellendi! Yönlendiriliyorsun...")
+                            st.success("✅ Şifren güncellendi!")
                             time.sleep(1.5)
                             st.session_state.auth_mode = 'login'
                             st.rerun()
                         else:
                             st.error(msg)
-                            
-            st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown('</div></div>', unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
             st.button("⬅️ Giriş Ekranına Dön", on_click=go_to_login)
 
-        # ---------------------------------------------------------
-        # 4. MOD: ÖĞRETMEN GİRİŞİ
-        # ---------------------------------------------------------
-        elif st.session_state.auth_mode == 'teacher':
-            st.markdown("<div class='auth-container animate-in'>", unsafe_allow_html=True)
-            st.markdown("#### 🔒 Yönetici / Öğretmen Girişi")
-            st.caption("Bu alan yalnızca yetkili personel içindir.")
-            
+        # ── ÖĞRETMEN ──
+        elif mode == 'teacher':
+            st.markdown('<div class="auth-card"><div class="auth-card-body">', unsafe_allow_html=True)
+            st.markdown("""
+                <div class="section-title"><div class="icon blue">👨‍🏫</div>Yönetici Paneli</div>
+                <div class="section-desc">Bu alan yalnızca yetkili öğretmen ve yöneticiler içindir.</div>
+            """, unsafe_allow_html=True)
+
             with st.form("teacher_form"):
-                pw = st.text_input("🔑 Yönetici Şifresi", type="password")
-                submit = st.form_submit_button("Panele Git ➡️", type="primary")
-                
+                pw = st.text_input("🔑 Yönetici Şifresi", type="password", placeholder="Şifrenizi girin...")
+                st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
+                submit = st.form_submit_button("Panele Git  ➡️", type="primary")
                 if submit:
                     secret_pass = get_teacher_password()
                     if secret_pass is None:
-                        st.error("⚠️ Yönetici şifresi yapılandırılmamış. Sistem yöneticisiyle iletişime geçin.")
+                        st.error("⚠️ Yönetici şifresi yapılandırılmamış.")
                     elif pw == secret_pass:
                         st.session_state.role = "teacher"
                         st.rerun()
                     else:
                         st.error("❌ Hatalı şifre.")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown('</div></div>', unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
             st.button("⬅️ Öğrenci Ekranına Dön", on_click=go_to_register)
-    
-    st.markdown('<div class="version-badge">EĞİTİM CHECK UP v2.0</div>', unsafe_allow_html=True)
+
+        # Feature chips
+        st.markdown("""
+            <div class="feature-chips">
+                <span class="chip">🧬 Enneagram</span>
+                <span class="chip">🧠 Beyin Dominansı</span>
+                <span class="chip">👁️ B2 Dikkat</span>
+                <span class="chip">📚 Akademik Analiz</span>
+                <span class="chip">🧭 Kariyer Keşfi</span>
+                <span class="chip">📖 Hızlı Okuma</span>
+                <span class="chip">💡 Çoklu Zeka</span>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown('<div class="version-badge">EĞİTİM CHECK UP v2.1</div>', unsafe_allow_html=True)
 
 
 # =========================================================
-# 🚀 YÖNLENDİRME MANTIĞI
+# YÖNLENDİRME
 # =========================================================
 if st.session_state.role is None:
     main_auth_flow()
-
 elif st.session_state.role == "student":
     import student_view
     student_view.app()
-
 elif st.session_state.role == "teacher":
     import teacher_view
     teacher_view.app()
 
-
 # =========================================================
-# 📌 SIDEBAR — OTURUM AÇIKKEN
+# SIDEBAR
 # =========================================================
 if st.session_state.role:
     with st.sidebar:
         role_label = "👨‍🏫 Yönetici" if st.session_state.role == "teacher" else "🎓 Öğrenci"
         user_name = st.session_state.get('student_name', 'Yönetici')
-        
         st.markdown(f"""
-            <div style="text-align:center; padding: 10px 0;">
-                <div style="font-size: 2rem;">{'👨‍🏫' if st.session_state.role == 'teacher' else '🎓'}</div>
-                <div style="font-size: 1.1rem; font-weight: 700; color: #FFFFFF; margin-top: 5px;">{user_name}</div>
-                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-top: 2px;">{role_label}</div>
+            <div style="text-align:center; padding: 14px 0;">
+                <div style="font-size: 2.2rem;">{'👨‍🏫' if st.session_state.role == 'teacher' else '🎓'}</div>
+                <div style="font-family:'Outfit',sans-serif; font-size: 1.15rem; font-weight: 700; color: #FFFFFF; margin-top: 6px;">{user_name}</div>
+                <div style="font-family:'Outfit',sans-serif; font-size: 0.78rem; color: rgba(255,255,255,0.6); margin-top: 3px; letter-spacing: 1px;">{role_label}</div>
             </div>
         """, unsafe_allow_html=True)
-        
         st.markdown("---")
-        
-        # Öğretmen ise veritabanı onarım butonu
-        # DÜZELTME: Artık SQLite dosya silme yerine repair_database() kullanıyor
         if st.session_state.role == "teacher":
             if st.button("🔧 Veritabanını Onar", help="Veritabanı hatası alırsanız buna basın"):
                 if repair_database():
@@ -580,17 +700,13 @@ if st.session_state.role:
                 else:
                     st.error("Onarım başarısız oldu.")
             st.markdown("---")
-        
-        # Çıkış Butonu
         if st.button("🚪 Güvenli Çıkış"):
             st.session_state.clear()
             st.session_state.auth_mode = 'register'
             st.rerun()
-        
         st.markdown("---")
         st.markdown("""
-            <div style="text-align:center; font-size: 0.7rem; color: rgba(255,255,255,0.5); padding-top: 10px;">
-                EĞİTİM CHECK UP v2.0<br/>
-                Kişisel Eğitim & Kariyer Analiz Merkezi
+            <div style="text-align:center; font-family:'Outfit',sans-serif; font-size: 0.7rem; color: rgba(255,255,255,0.4); padding-top: 10px; letter-spacing: 0.5px;">
+                EĞİTİM CHECK UP v2.1<br/>Kişisel Eğitim & Kariyer Analiz Merkezi
             </div>
         """, unsafe_allow_html=True)
