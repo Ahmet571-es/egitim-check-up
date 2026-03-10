@@ -512,13 +512,6 @@ def _render_test_questions():
                 color = "🔴" if rem_int <= 5 else ("🟡" if rem_int <= 10 else "🟢")
                 st.markdown(f"### {color} {rem_int} sn")
 
-            # Sayfayı süre dolduğunda otomatik yenile
-            refresh_ms = int(remaining * 1000) + 500
-            st.markdown(
-                f'<meta http-equiv="refresh" content="{int(remaining) + 1}">',
-                unsafe_allow_html=True,
-            )
-
             with st.form(f"p2_row_{current_row}"):
                 P2_COLS = 10
                 for sub_r in range(
