@@ -1292,6 +1292,65 @@ def app():
                 """, unsafe_allow_html=True)
 
             
+            # --- P2 DİKKAT TESTİ İÇİN YAŞA GÖRE SÜRE BİLGİSİ ---
+            if "P2 Dikkat" in t_name:
+                student_age = st.session_state.get("student_age", 15)
+                my_time = p2_get_time_per_row(student_age)
+
+                # Süre bilgi kartı
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #EBF5FB 0%, #D6EAF8 100%);
+                            border: 1px solid #AED6F1; border-radius: 14px;
+                            padding: 22px 24px; margin: 14px 0;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <div style="background: #2563EB; color: white; width: 42px; height: 42px;
+                                    border-radius: 12px; display: flex; align-items: center;
+                                    justify-content: center; font-size: 1.3rem; flex-shrink: 0;">⏱️</div>
+                        <div>
+                            <div style="font-weight: 700; color: #1B2A4A; font-size: 1.05rem;">
+                                Senin Süren: <span style="color: #2563EB; font-size: 1.25rem;">{my_time} saniye</span>
+                                <span style="color: #888; font-size: 0.85rem; font-weight: 400;"> / satır</span>
+                            </div>
+                            <div style="font-size: 0.82rem; color: #666; margin-top: 2px;">
+                                Yaşın: {student_age} — süre otomatik belirlendi
+                            </div>
+                        </div>
+                    </div>
+                    <table style="width: 100%; border-collapse: separate; border-spacing: 0;
+                                  font-size: 0.88rem; border-radius: 10px; overflow: hidden;
+                                  border: 1px solid #D4E6F1;">
+                        <tr style="background: #2563EB; color: white;">
+                            <th style="padding: 10px 14px; text-align: left; font-weight: 600;">Yaş Grubu</th>
+                            <th style="padding: 10px 14px; text-align: center; font-weight: 600;">Satır Süresi</th>
+                        </tr>
+                        <tr style="background: {'#D5F5E3' if student_age <= 9 else '#fff'};">
+                            <td style="padding: 9px 14px; border-bottom: 1px solid #EAF2F8;">
+                                {'<b>➤ ' if student_age <= 9 else ''}7 – 9 yaş{'</b>' if student_age <= 9 else ''}</td>
+                            <td style="padding: 9px 14px; text-align: center; border-bottom: 1px solid #EAF2F8;">
+                                {'<b>' if student_age <= 9 else ''}25 saniye{'</b>' if student_age <= 9 else ''}</td>
+                        </tr>
+                        <tr style="background: {'#D5F5E3' if 10 <= student_age <= 12 else '#F8FBFF'};">
+                            <td style="padding: 9px 14px; border-bottom: 1px solid #EAF2F8;">
+                                {'<b>➤ ' if 10 <= student_age <= 12 else ''}10 – 12 yaş{'</b>' if 10 <= student_age <= 12 else ''}</td>
+                            <td style="padding: 9px 14px; text-align: center; border-bottom: 1px solid #EAF2F8;">
+                                {'<b>' if 10 <= student_age <= 12 else ''}20 saniye{'</b>' if 10 <= student_age <= 12 else ''}</td>
+                        </tr>
+                        <tr style="background: {'#D5F5E3' if 13 <= student_age <= 15 else '#fff'};">
+                            <td style="padding: 9px 14px; border-bottom: 1px solid #EAF2F8;">
+                                {'<b>➤ ' if 13 <= student_age <= 15 else ''}13 – 15 yaş{'</b>' if 13 <= student_age <= 15 else ''}</td>
+                            <td style="padding: 9px 14px; text-align: center; border-bottom: 1px solid #EAF2F8;">
+                                {'<b>' if 13 <= student_age <= 15 else ''}15 saniye{'</b>' if 13 <= student_age <= 15 else ''}</td>
+                        </tr>
+                        <tr style="background: {'#D5F5E3' if student_age >= 16 else '#F8FBFF'};">
+                            <td style="padding: 9px 14px;">
+                                {'<b>➤ ' if student_age >= 16 else ''}16+ yaş{'</b>' if student_age >= 16 else ''}</td>
+                            <td style="padding: 9px 14px; text-align: center;">
+                                {'<b>' if student_age >= 16 else ''}12 saniye{'</b>' if student_age >= 16 else ''}</td>
+                        </tr>
+                    </table>
+                </div>
+                """, unsafe_allow_html=True)
+
             c1, c2 = st.columns(2)
             
             if c1.button("⬅️ Vazgeç / Ana Menü"):
