@@ -436,10 +436,20 @@ def _render_test_questions():
             st.session_state._scroll_top = False
             components.html(
                 """<script>
-                setTimeout(function(){
-                    var m = window.parent.document.querySelector('section.main');
-                    if(m) m.scrollTo({top:0, behavior:'instant'});
-                }, 50);
+                (function(){
+                    function doScroll(){
+                        try{
+                            var m = window.parent.document.querySelector('section.main');
+                            if(m) m.scrollTo({top:0, behavior:'instant'});
+                            var c = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+                            if(c) c.scrollTo({top:0, behavior:'instant'});
+                            window.parent.scrollTo(0,0);
+                        }catch(e){}
+                    }
+                    doScroll();
+                    setTimeout(doScroll, 100);
+                    setTimeout(doScroll, 300);
+                })();
                 </script>""", height=0,
             )
 
@@ -474,61 +484,32 @@ def _render_test_questions():
         elif 0 <= current_row < P2_CONFIG["rows"]:
             row_symbols = st.session_state.p2_rows[current_row]
 
+            # Satır başlangıç zamanını kaydet (sadece ilk render'da)
             if st.session_state.p2_row_start is None:
                 st.session_state.p2_row_start = time.time()
-
-            elapsed = time.time() - st.session_state.p2_row_start
-            remaining = max(0, time_per_row - elapsed)
-
-            # ── SÜRE DOLDU — OTOMATİK GEÇİŞ (sayfa yenilendiğinde) ──
-            if remaining <= 0:
-                selected = [
-                    st.session_state.get(f"p2r{current_row}_s{i}", False)
-                    for i in range(len(row_symbols))
-                ]
-                st.session_state.p2_row_results.append({
-                    "symbols": row_symbols,
-                    "selected": selected,
-                    "elapsed_time": elapsed,
-                })
-                next_row = current_row + 1
-                if next_row >= P2_CONFIG["rows"]:
-                    _finish_p2_test(t_name)
-                else:
-                    st.session_state.p2_current_row = next_row
-                    st.session_state.p2_row_start = time.time()
-                    st.session_state._scroll_top = True
-                    st.rerun()
 
             # ── TEST EKRANI ──
             st.progress((current_row + 1) / P2_CONFIG["rows"])
             st.markdown(f"### Satır {current_row + 1} / {P2_CONFIG['rows']}")
 
-            # ── CANLI JS ZAMANLAYICI + SÜRE BİTİNCE OTOMATİK GÖNDER ──
-            timer_seconds = int(remaining)
+            # ── JS GERI SAYIM — sadece görsel uyarı, otomatik geçiş YOK ──
             components.html(f"""
             <div id="p2timer" style="text-align:center;font-size:2.2rem;font-weight:800;
                  color:#1B2A4A;padding:8px 0;font-family:monospace;">
-              ⏱️ {timer_seconds}
+              ⏱️ {time_per_row}
             </div>
             <script>
             (function(){{
-              var left = {timer_seconds};
+              var left = {time_per_row};
               var el = document.getElementById('p2timer');
               if(!el) return;
               var iv = setInterval(function(){{
                 left--;
                 if(left <= 0){{
                   clearInterval(iv);
-                  el.innerHTML = '⏰ Süre doldu!';
+                  el.innerHTML = '⏰ Süre doldu! Satırı gönderin.';
                   el.style.color = '#E74C3C';
-                  // Formu otomatik gönder
-                  try{{
-                    var btns = window.parent.document.querySelectorAll(
-                      '[data-testid="stFormSubmitButton"] button'
-                    );
-                    if(btns.length > 0) btns[btns.length-1].click();
-                  }}catch(e){{}}
+                  el.style.fontSize = '1.4rem';
                 }} else {{
                   el.innerHTML = '⏱️ ' + left;
                   if(left <= 3){{ el.style.color='#E74C3C'; el.style.fontSize='2.6rem'; }}
@@ -560,6 +541,7 @@ def _render_test_questions():
                 )
 
             if submitted:
+                # Elapsed sadece KAYIT için — UI kontrolü yok
                 elapsed_final = time.time() - (
                     st.session_state.p2_row_start or time.time()
                 )
