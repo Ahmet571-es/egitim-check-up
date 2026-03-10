@@ -1292,15 +1292,6 @@ def app():
                 """, unsafe_allow_html=True)
 
             
-            # --- P2 TESTİ İÇİN YAŞA GÖRE SÜRE BİLGİSİ ---
-            if "P2 Dikkat" in t_name:
-                student_age = st.session_state.get("student_age", 15)
-                my_time = p2_get_time_per_row(student_age)
-                st.markdown(
-                    p2_render_instructions_html(my_time, student_age),
-                    unsafe_allow_html=True,
-                )
-            
             c1, c2 = st.columns(2)
             
             if c1.button("⬅️ Vazgeç / Ana Menü"):
