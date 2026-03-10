@@ -431,6 +431,18 @@ def _render_test_questions():
         # P2 CSS
         st.markdown(P2_CSS, unsafe_allow_html=True)
 
+        # ── Scroll to top (fragment içinde çalışır) ──
+        if st.session_state.get("_scroll_top"):
+            st.session_state._scroll_top = False
+            components.html(
+                """<script>
+                setTimeout(function(){
+                    var m = window.parent.document.querySelector('section.main');
+                    if(m) m.scrollTo({top:0, behavior:'instant'});
+                }, 50);
+                </script>""", height=0,
+            )
+
         # ---- ALIŞTIRMA SAYFASI ----
         if not st.session_state.p2_practice_done:
             st.markdown(
@@ -452,16 +464,6 @@ def _render_test_questions():
                                 st.checkbox(lbl, key=f"p2p_{idx}")
 
                 if st.form_submit_button("ALIŞTIRMAYI KONTROL ET", type="primary"):
-                    correct = wrong = missed = 0
-                    for i, sym in enumerate(practice):
-                        sel = st.session_state.get(f"p2p_{i}", False)
-                        if sym["is_target"] and sel:
-                            correct += 1
-                        elif sym["is_target"] and not sel:
-                            missed += 1
-                        elif not sym["is_target"] and sel:
-                            wrong += 1
-
                     st.session_state.p2_practice_done = True
                     st.session_state.p2_current_row = 0
                     st.session_state.p2_row_start = time.time()
@@ -478,7 +480,7 @@ def _render_test_questions():
             elapsed = time.time() - st.session_state.p2_row_start
             remaining = max(0, time_per_row - elapsed)
 
-            # ── SÜRE DOLDU — OTOMATİK GEÇİŞ ──
+            # ── SÜRE DOLDU — OTOMATİK GEÇİŞ (sayfa yenilendiğinde) ──
             if remaining <= 0:
                 selected = [
                     st.session_state.get(f"p2r{current_row}_s{i}", False)
@@ -500,17 +502,42 @@ def _render_test_questions():
 
             # ── TEST EKRANI ──
             st.progress((current_row + 1) / P2_CONFIG["rows"])
+            st.markdown(f"### Satır {current_row + 1} / {P2_CONFIG['rows']}")
 
-            # Süre göstergesi (Streamlit native)
-            time_col1, time_col2 = st.columns([3, 1])
-            with time_col1:
-                st.markdown(
-                    f"### Satır {current_row + 1} / {P2_CONFIG['rows']}"
-                )
-            with time_col2:
-                rem_int = int(remaining)
-                color = "🔴" if rem_int <= 5 else ("🟡" if rem_int <= 10 else "🟢")
-                st.markdown(f"### {color} {rem_int} sn")
+            # ── CANLI JS ZAMANLAYICI + SÜRE BİTİNCE OTOMATİK GÖNDER ──
+            timer_seconds = int(remaining)
+            components.html(f"""
+            <div id="p2timer" style="text-align:center;font-size:2.2rem;font-weight:800;
+                 color:#1B2A4A;padding:8px 0;font-family:monospace;">
+              ⏱️ {timer_seconds}
+            </div>
+            <script>
+            (function(){{
+              var left = {timer_seconds};
+              var el = document.getElementById('p2timer');
+              if(!el) return;
+              var iv = setInterval(function(){{
+                left--;
+                if(left <= 0){{
+                  clearInterval(iv);
+                  el.innerHTML = '⏰ Süre doldu!';
+                  el.style.color = '#E74C3C';
+                  // Formu otomatik gönder
+                  try{{
+                    var btns = window.parent.document.querySelectorAll(
+                      '[data-testid="stFormSubmitButton"] button'
+                    );
+                    if(btns.length > 0) btns[btns.length-1].click();
+                  }}catch(e){{}}
+                }} else {{
+                  el.innerHTML = '⏱️ ' + left;
+                  if(left <= 3){{ el.style.color='#E74C3C'; el.style.fontSize='2.6rem'; }}
+                  else if(left <= 7) el.style.color='#F39C12';
+                }}
+              }}, 1000);
+            }})();
+            </script>
+            """, height=65)
 
             with st.form(f"p2_row_{current_row}"):
                 P2_COLS = 10
@@ -1384,10 +1411,24 @@ def app():
         st.session_state._scroll_top = False
         components.html(
             """<script>
-            setTimeout(function(){
-                var main = window.parent.document.querySelector('section.main');
-                if(main) main.scrollTo({top: 0, behavior: 'instant'});
-            }, 100);
+            function scrollUp(){
+                try{
+                    // Yöntem 1: section.main
+                    var m = window.parent.document.querySelector('section.main');
+                    if(m) m.scrollTop = 0;
+                    // Yöntem 2: stAppViewContainer
+                    var c = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+                    if(c) c.scrollTop = 0;
+                    // Yöntem 3: stMain
+                    var s = window.parent.document.querySelector('[data-testid="stMain"]');
+                    if(s) s.scrollTop = 0;
+                    // Yöntem 4: window scroll
+                    window.parent.scrollTo(0,0);
+                }catch(e){}
+            }
+            scrollUp();
+            setTimeout(scrollUp, 150);
+            setTimeout(scrollUp, 400);
             </script>""",
             height=0,
         )
