@@ -670,26 +670,42 @@ def _render_test_questions():
                         unsafe_allow_html=True)
             st.divider()
 
-            # Zamanlayıcı göstergesi (canlı sayaç)
+            # Zamanlayıcı göstergesi (canlı JS kronometre)
             elapsed = time.time() - st.session_state.sr_start_time
-            mins = int(elapsed) // 60
-            secs = int(elapsed) % 60
+            start_secs = int(elapsed)
 
-            st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #FFF3E0, #FFE0B2); border: 1px solid #FFB74D;
-                            border-radius: 12px; padding: 12px 20px; margin: 10px 0;
-                            display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 1.5rem;">⏱️</span>
-                    <div>
-                        <div style="font-weight: 700; color: #E65100; font-size: 1.1rem;">
-                            Okuma süresi: {mins:02d}:{secs:02d}
-                        </div>
-                        <div style="font-size: 0.8rem; color: #888;">
-                            Metni dikkatlice oku — bitirdiğinde aşağıdaki butona bas
-                        </div>
+            components.html(f"""
+            <div id="sr_timer" style="background: linear-gradient(135deg, #FFF3E0, #FFE0B2); border: 1px solid #FFB74D;
+                        border-radius: 12px; padding: 12px 20px; margin: 0;
+                        display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 1.5rem;">⏱️</span>
+                <div>
+                    <div id="sr_clock" style="font-weight: 700; color: #E65100; font-size: 1.1rem; font-family: monospace;">
+                        Okuma süresi: 00:00
+                    </div>
+                    <div style="font-size: 0.8rem; color: #888;">
+                        Metni dikkatlice oku — bitirdiğinde aşağıdaki butona bas
                     </div>
                 </div>
-            """, unsafe_allow_html=True)
+            </div>
+            <script>
+            (function(){{
+                var elapsed = {start_secs};
+                var el = document.getElementById('sr_clock');
+                if(!el) return;
+                function pad(n){{ return n < 10 ? '0'+n : ''+n; }}
+                function update(){{
+                    var m = Math.floor(elapsed / 60);
+                    var s = elapsed % 60;
+                    el.textContent = 'Okuma süresi: ' + pad(m) + ':' + pad(s);
+                    if(elapsed >= 120){{ el.style.color = '#D32F2F'; }}
+                    else if(elapsed >= 60){{ el.style.color = '#F57C00'; }}
+                }}
+                update();
+                setInterval(function(){{ elapsed++; update(); }}, 1000);
+            }})();
+            </script>
+            """, height=70)
 
             # Metin gösterimi
             paragraphs = passage["text"].split("\n\n")
