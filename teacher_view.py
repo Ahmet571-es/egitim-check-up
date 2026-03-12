@@ -2078,6 +2078,48 @@ def app():
             else:
                 st.warning("Sistemde henüz veri yok.")
 
+        with st.expander("📝 Tüm Word Raporları İndir", expanded=False):
+            st.info("Her öğrencinin bireysel Word raporunu tek bir ZIP dosyası olarak indirin.")
+            if data:
+                if st.button("📝 Word Dosyalarını Oluştur", type="primary", key="btn_bulk_docx"):
+                    import zipfile
+                    import io as _io
+                    from docx_engine import generate_student_docx, generate_student_docx_filename
+
+                    zip_buffer = _io.BytesIO()
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    success_count = 0
+
+                    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                        for i, student in enumerate(data):
+                            name = student["info"].name
+                            status_text.text(f"📝 {name} Word raporu oluşturuluyor...")
+                            try:
+                                history = get_student_analysis_history(student["info"].id)
+                                docx_buf = generate_student_docx(student, history)
+                                fname = generate_student_docx_filename(name)
+                                zf.writestr(fname, docx_buf.getvalue())
+                                success_count += 1
+                            except Exception as e:
+                                st.warning(f"⚠️ {name}: Word oluşturulamadı — {e}")
+                            progress_bar.progress((i + 1) / len(data))
+
+                    zip_buffer.seek(0)
+                    status_text.text(f"✅ {success_count}/{len(data)} Word raporu hazır!")
+                    progress_bar.empty()
+
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                    st.download_button(
+                        label=f"📥 {success_count} WORD İNDİR (ZIP)",
+                        data=zip_buffer,
+                        file_name=f"Egitim_CheckUp_Word_Raporlar_{timestamp}.zip",
+                        mime="application/zip",
+                        key="dl_bulk_docx"
+                    )
+            else:
+                st.warning("Sistemde henüz veri yok.")
+
         with st.expander("🗑️ Öğrenci Dosyası Sil"):
             if not student_names_all:
                 st.info("Sistemde kayıtlı öğrenci yok.")
@@ -2159,7 +2201,7 @@ def app():
 
     # Öğrenci dosyası indirme butonları (tab'ların üstünde)
     with st.container():
-        col_dl1, col_dl2, col_dl3 = st.columns([2, 1, 1])
+        col_dl1, col_dl2, col_dl3, col_dl4 = st.columns([2, 1, 1, 1])
         with col_dl2:
             student_history = get_student_analysis_history(info.id)
             # PDF İndirme Butonu
@@ -2175,6 +2217,19 @@ def app():
                 type="primary"
             )
         with col_dl3:
+            # Word İndirme Butonu
+            from docx_engine import generate_student_docx, generate_student_docx_filename
+            docx_buffer = generate_student_docx(student_data, student_history)
+            docx_filename = generate_student_docx_filename(info.name)
+            st.download_button(
+                label="📝 Word Rapor İndir",
+                data=docx_buffer,
+                file_name=docx_filename,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                key="dl_student_docx",
+                type="primary"
+            )
+        with col_dl4:
             student_excel = generate_student_excel(student_data, student_history)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")
             safe_name = info.name.replace(" ", "_")
