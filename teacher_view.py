@@ -1953,6 +1953,23 @@ def app():
     # --- CSS ---
     st.markdown("""
     <style>
+        /* ===== GLOBAL DARK MODE KORUMA (öğretmen paneli) ===== */
+        .stApp p, .stApp span, .stApp label,
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp li,
+        .stApp [data-testid="stMarkdownContainer"] p,
+        .stApp [data-testid="stWidgetLabel"] p {
+            color: #0F172A !important;
+        }
+        [data-testid="stSidebar"] p, [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+            color: #FFFFFF !important;
+        }
+        .stApp button[kind="primary"] { color: white !important; }
+        .stApp .stAlert p { color: inherit !important; }
+        .report-header { color: #155724 !important; }
+        .id-card-name { color: #1B2A4A !important; }
+
         /* ===== ÖĞRETMEN PANEL CSS ===== */
         .stSelectbox div, .stMultiSelect div { cursor: pointer !important; }
         div[data-baseweb="select"] { cursor: pointer !important; }

@@ -975,6 +975,25 @@ def app():
     # --- GENEL CSS ---
     st.markdown("""
     <style>
+        /* ===== GLOBAL DARK MODE KORUMA (öğrenci sayfası) ===== */
+        .stApp p, .stApp span, .stApp label,
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp li,
+        .stApp [data-testid="stMarkdownContainer"] p,
+        .stApp [data-testid="stWidgetLabel"] p {
+            color: #0F172A !important;
+        }
+        [data-testid="stSidebar"] p, [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+            color: #FFFFFF !important;
+        }
+        .stApp button[kind="primary"] { color: white !important; }
+        .stApp .stAlert p { color: inherit !important; }
+        .motivation-box, .motivation-box h3, .motivation-box p { color: #FFFFFF !important; }
+        .test-card-desc, .test-card-meta, .test-card-meta span, .stat-label, .sub-header { color: #555 !important; }
+        .badge-done { color: #155724 !important; }
+        .badge-ready { color: #0c5460 !important; }
+
         /* ===== ÖĞRENCİ GÖRÜNÜM CSS ===== */
         .main-header {
             text-align: center;

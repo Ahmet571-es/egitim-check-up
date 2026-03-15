@@ -30,10 +30,15 @@ def get_logo_base64():
 # 🎨 PREMIUM TASARIM SİSTEMİ
 # =========================================================
 st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+<meta name="color-scheme" content="light only">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+""", unsafe_allow_html=True)
 
-    :root {
+st.markdown("""
+<style>
+    :root, [data-theme="dark"], [data-theme="light"] {
         --navy: #0F1B2D;
         --blue: #2563EB;
         --blue-light: #3B82F6;
@@ -52,12 +57,78 @@ st.markdown("""
         --shadow-sm: 0 1px 3px rgba(15,23,42,0.06);
         --shadow-md: 0 4px 16px rgba(15,23,42,0.08);
         --shadow-lg: 0 12px 40px rgba(15,23,42,0.12);
+        color-scheme: light only !important;
     }
 
-    .stApp {
-        background: var(--surface-alt) !important;
-        font-family: 'DM Sans', -apple-system, sans-serif !important;
+    /* ===== STREAMLIT DARK TEMA TAM OVERRIDE ===== */
+    .stApp,
+    .stApp [data-theme="dark"],
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewBlockContainer"],
+    .main .block-container {
+        background: #F8FAFC !important;
+        color: #0F172A !important;
+        font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        color-scheme: light only !important;
     }
+    .stApp p, .stApp span, .stApp label, .stApp li, .stApp td, .stApp th,
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+    .stApp [data-testid="stMarkdownContainer"],
+    .stApp [data-testid="stMarkdownContainer"] p,
+    .stApp [data-testid="stMarkdownContainer"] span,
+    .stApp [data-testid="stWidgetLabel"],
+    .stApp [data-testid="stWidgetLabel"] p {
+        color: #0F172A !important;
+    }
+    .stApp input, .stApp textarea, .stApp select,
+    .stApp [data-baseweb="select"] span,
+    .stApp [data-baseweb="input"] input {
+        color: #0F172A !important;
+        background-color: #FFFFFF !important;
+    }
+    /* Hero gradient text — özel koruma */
+    .hero-title {
+        color: #0F1B2D !important;
+        -webkit-text-fill-color: transparent;
+    }
+    /* Açık renkli label'lar — görünür ama hafif */
+    .test-card-desc, .test-card-meta, .test-card-meta span,
+    .stat-label, .sub-header, .section-desc,
+    .field-group-title, .info-box-text {
+        color: #555 !important;
+    }
+    .hero-subtitle { color: #475569 !important; }
+    /* Motivasyon kutusu — beyaz metin dark bg üzerinde */
+    .motivation-box, .motivation-box h3, .motivation-box p { color: #FFFFFF !important; }
+    /* Sidebar istisna — sidebar dark kalacak */
+    [data-testid="stSidebar"],
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] div,
+    [data-testid="stSidebar"] li,
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: #FFFFFF !important;
+    }
+    /* Butonlar istisna */
+    .stApp button[kind="primary"],
+    .stApp button[data-testid="stFormSubmitButton"],
+    .stApp .stButton > button[type="primary"] {
+        color: white !important;
+    }
+    /* Badge'ler — kendi renklerini korusun */
+    .badge-done { color: #155724 !important; }
+    .badge-ready { color: #0c5460 !important; }
+    .report-header { color: #155724 !important; }
+    /* Alert/notification istisna */
+    .stApp .stAlert p,
+    .stApp [data-testid="stNotification"] p,
+    .stApp .stSuccess p, .stApp .stWarning p, .stApp .stError p, .stApp .stInfo p {
+        color: inherit !important;
+    }
+
     #MainMenu, footer, header { visibility: hidden; }
     .stDeployButton { display: none; }
 
@@ -423,59 +494,12 @@ st.markdown("""
         font-family: 'Outfit', sans-serif;
         font-size: 0.78rem;
         font-weight: 600;
-        color: var(--text-muted);
+        color: #94A3B8 !important;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-bottom: 10px;
         padding-bottom: 6px;
-        border-bottom: 1px solid var(--border);
-    }
-
-    /* ===== DARK MODE KORUMA — Tüm native Streamlit elemanları ===== */
-    .stApp, .stApp * {
-        color-scheme: light !important;
-    }
-    .stApp [data-testid="stMarkdownContainer"],
-    .stApp [data-testid="stMarkdownContainer"] p,
-    .stApp [data-testid="stMarkdownContainer"] li,
-    .stApp [data-testid="stMarkdownContainer"] span,
-    .stApp label,
-    .stApp .stRadio label,
-    .stApp .stCheckbox label,
-    .stApp .stSelectbox label,
-    .stApp .stTextInput label,
-    .stApp .stNumberInput label,
-    .stApp .stTextArea label,
-    .stApp [data-testid="stWidgetLabel"],
-    .stApp [data-testid="stWidgetLabel"] p {
-        color: #0F172A !important;
-    }
-    .stApp [data-testid="stForm"] {
-        background: #FFFFFF !important;
-        border-color: #E2E8F0 !important;
-    }
-    .stApp .stSelectbox [data-baseweb="select"] span,
-    .stApp .stTextInput input,
-    .stApp .stNumberInput input,
-    .stApp .stTextArea textarea {
-        color: #0F172A !important;
-        background-color: #FFFFFF !important;
-    }
-    .stApp .stRadio [role="radiogroup"] label span,
-    .stApp .stCheckbox label span {
-        color: #0F172A !important;
-    }
-    .stApp .stAlert p,
-    .stApp [data-testid="stNotification"] p {
-        color: inherit !important;
-    }
-    /* Sidebar istisna — sidebar dark kalacak */
-    [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] span,
-    [data-testid="stSidebar"] p,
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"],
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
-        color: #FFFFFF !important;
+        border-bottom: 1px solid #E2E8F0;
     }
 </style>
 """, unsafe_allow_html=True)
