@@ -86,10 +86,15 @@ st.markdown("""
         color: #0F172A !important;
         background-color: #FFFFFF !important;
     }
-    /* Hero gradient text — özel koruma */
+    /* Hero gradient text — güvenli fallback */
     .hero-title {
         color: #0F1B2D !important;
-        -webkit-text-fill-color: transparent;
+        -webkit-text-fill-color: #0F1B2D;
+    }
+    @supports (-webkit-background-clip: text) {
+        .hero-title {
+            -webkit-text-fill-color: transparent;
+        }
     }
     /* Açık renkli label'lar — görünür ama hafif */
     .test-card-desc, .test-card-meta, .test-card-meta span,
@@ -179,16 +184,21 @@ st.markdown("""
         text-transform: uppercase;
         margin: 0;
         line-height: 1.15;
-        background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 50%, var(--navy) 100%);
+        color: #0F1B2D;
+        background: linear-gradient(135deg, #0F1B2D 0%, #2563EB 50%, #0F1B2D 100%);
         background-size: 200% auto;
         -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        -webkit-text-fill-color: #0F1B2D;
         animation: gradient-shift 6s ease infinite;
+    }
+    @supports (-webkit-background-clip: text) {
+        .hero-title { -webkit-text-fill-color: transparent; }
     }
     .hero-subtitle {
         font-family: 'Outfit', sans-serif;
         font-size: 0.92rem;
-        color: var(--text-secondary);
+        color: #475569;
         font-weight: 400;
         margin-top: 5px;
         letter-spacing: 2px;
@@ -196,7 +206,7 @@ st.markdown("""
     }
     .hero-divider {
         height: 3px;
-        background: linear-gradient(90deg, transparent 5%, var(--blue) 30%, var(--red-soft) 50%, var(--gold) 70%, transparent 95%);
+        background: linear-gradient(90deg, transparent 5%, #2563EB 30%, #EF4444 50%, #F59E0B 70%, transparent 95%);
         margin: 18px auto 26px auto;
         max-width: 340px;
         border-radius: 2px;
@@ -205,12 +215,12 @@ st.markdown("""
 
     /* ===== AUTH CARD ===== */
     .auth-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
         border-radius: 20px;
         max-width: 560px;
         margin: 0 auto;
-        box-shadow: var(--shadow-lg);
+        box-shadow: 0 12px 40px rgba(15,23,42,0.12);
         overflow: hidden;
         animation: fadeUp 0.5s ease-out 0.1s both;
         position: relative;
@@ -220,7 +230,7 @@ st.markdown("""
         position: absolute;
         top: 0; left: 0; right: 0;
         height: 4px;
-        background: linear-gradient(90deg, var(--blue), var(--cyan), var(--blue-light));
+        background: linear-gradient(90deg, #2563EB, #06B6D4, #3B82F6);
         background-size: 200% auto;
         animation: shimmer 3s linear infinite;
     }
@@ -229,8 +239,8 @@ st.markdown("""
     /* ===== TABS ===== */
     .auth-tabs {
         display: flex;
-        border-bottom: 1px solid var(--border);
-        background: var(--surface-alt);
+        border-bottom: 1px solid #E2E8F0;
+        background: #F8FAFC;
     }
     .auth-tab {
         flex: 1;
@@ -239,13 +249,13 @@ st.markdown("""
         font-family: 'Outfit', sans-serif;
         font-size: 0.88rem;
         font-weight: 600;
-        color: var(--text-muted);
+        color: #94A3B8;
         position: relative;
         transition: all 0.3s ease;
     }
     .auth-tab.active {
-        color: var(--blue);
-        background: var(--surface);
+        color: #2563EB;
+        background: #FFFFFF;
     }
     .auth-tab.active::after {
         content: "";
@@ -253,7 +263,7 @@ st.markdown("""
         bottom: -1px;
         left: 20%; right: 20%;
         height: 3px;
-        background: var(--blue);
+        background: #2563EB;
         border-radius: 3px 3px 0 0;
     }
     .auth-tab-icon { display: block; font-size: 1.2rem; margin-bottom: 2px; }
@@ -263,7 +273,7 @@ st.markdown("""
         font-family: 'Outfit', sans-serif;
         font-size: 1.3rem;
         font-weight: 700;
-        color: var(--text-primary);
+        color: #0F172A;
         margin: 0 0 4px 0;
         display: flex;
         align-items: center;
@@ -281,7 +291,7 @@ st.markdown("""
     .section-title .icon.red { background: rgba(220,38,38,0.08); }
     .section-desc {
         font-size: 0.86rem;
-        color: var(--text-muted);
+        color: #94A3B8;
         margin: 0 0 20px 0;
         line-height: 1.5;
     }
@@ -299,44 +309,44 @@ st.markdown("""
         animation: fadeIn 0.5s ease-out 0.2s both;
     }
     .info-box-icon { font-size: 1.1rem; margin-top: 1px; flex-shrink: 0; }
-    .info-box-text { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
-    .info-box-text b { color: var(--blue); font-weight: 600; }
+    .info-box-text { font-size: 0.85rem; color: #475569; line-height: 1.5; }
+    .info-box-text b { color: #2563EB; font-weight: 600; }
 
     /* ===== FORM INPUTS ===== */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input {
         border-radius: 12px !important;
-        border: 1.5px solid var(--border) !important;
+        border: 1.5px solid #E2E8F0 !important;
         padding: 11px 15px !important;
         font-size: 0.93rem !important;
         font-family: 'DM Sans', sans-serif !important;
-        background: var(--surface) !important;
+        background: #FFFFFF !important;
         transition: all 0.25s ease !important;
-        color: var(--text-primary) !important;
+        color: #0F172A !important;
     }
     .stTextInput > div > div > input:focus,
     .stNumberInput > div > div > input:focus {
-        border-color: var(--blue) !important;
+        border-color: #2563EB !important;
         box-shadow: 0 0 0 4px rgba(37,99,235,0.08) !important;
     }
     .stTextInput > div > div > input::placeholder {
-        color: var(--text-muted) !important;
+        color: #94A3B8 !important;
     }
     .stSelectbox > div > div {
         border-radius: 12px !important;
-        border: 1.5px solid var(--border) !important;
+        border: 1.5px solid #E2E8F0 !important;
     }
     .stSelectbox > div > div:focus-within {
-        border-color: var(--blue) !important;
+        border-color: #2563EB !important;
         box-shadow: 0 0 0 4px rgba(37,99,235,0.08) !important;
     }
     .stNumberInput button {
         border-radius: 8px !important;
-        border: 1.5px solid var(--border) !important;
-        background: var(--surface-alt) !important;
+        border: 1.5px solid #E2E8F0 !important;
+        background: #F8FAFC !important;
     }
     .stNumberInput button:hover {
-        border-color: var(--blue) !important;
+        border-color: #2563EB !important;
     }
 
     /* ===== BUTTONS ===== */
@@ -353,23 +363,23 @@ st.markdown("""
     }
     .stButton > button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: var(--shadow-md) !important;
+        box-shadow: 0 4px 16px rgba(15,23,42,0.08) !important;
     }
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%) !important;
+        background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%) !important;
         color: white !important;
     }
     .stButton > button[kind="primary"]:hover {
         box-shadow: 0 8px 24px rgba(37,99,235,0.3) !important;
     }
     .stButton > button[kind="secondary"] {
-        background: var(--surface) !important;
-        color: var(--text-secondary) !important;
-        border: 1.5px solid var(--border) !important;
+        background: #FFFFFF !important;
+        color: #475569 !important;
+        border: 1.5px solid #E2E8F0 !important;
     }
     .stButton > button[kind="secondary"]:hover {
-        border-color: var(--blue) !important;
-        color: var(--blue) !important;
+        border-color: #2563EB !important;
+        color: #2563EB !important;
     }
 
     /* ===== FORM SUBMIT ===== */
@@ -381,7 +391,7 @@ st.markdown("""
         font-size: 0.98rem !important;
         letter-spacing: 1px !important;
         text-transform: uppercase !important;
-        background: linear-gradient(135deg, var(--blue) 0%, #1D4ED8 100%) !important;
+        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
         color: white !important;
         border: none !important;
         transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important;
@@ -398,7 +408,7 @@ st.markdown("""
         align-items: center;
         gap: 12px;
         margin: 18px 0;
-        color: var(--text-muted);
+        color: #94A3B8;
         font-size: 0.75rem;
         font-weight: 500;
         letter-spacing: 1px;
@@ -409,7 +419,7 @@ st.markdown("""
         content: "";
         flex: 1;
         height: 1px;
-        background: var(--border);
+        background: #E2E8F0;
     }
 
     /* ===== FEATURE CHIPS ===== */
@@ -430,31 +440,31 @@ st.markdown("""
         font-size: 0.75rem;
         font-weight: 500;
         font-family: 'Outfit', sans-serif;
-        background: var(--surface);
-        color: var(--text-secondary);
-        border: 1px solid var(--border);
+        background: #FFFFFF;
+        color: #475569;
+        border: 1px solid #E2E8F0;
         transition: all 0.2s ease;
     }
     .chip:hover {
-        border-color: var(--blue);
-        color: var(--blue);
+        border-color: #2563EB;
+        color: #2563EB;
         transform: translateY(-1px);
-        box-shadow: var(--shadow-sm);
+        box-shadow: 0 1px 3px rgba(15,23,42,0.06);
     }
 
     /* ===== VERSION BADGE ===== */
     .version-badge {
         position: fixed;
         bottom: 10px; right: 14px;
-        background: var(--surface);
-        color: var(--text-muted);
+        background: #FFFFFF;
+        color: #94A3B8;
         padding: 4px 12px;
         border-radius: 20px;
         font-size: 0.68rem;
         font-family: 'Outfit', sans-serif;
         letter-spacing: 0.5px;
-        box-shadow: var(--shadow-sm);
-        border: 1px solid var(--border);
+        box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+        border: 1px solid #E2E8F0;
         z-index: 999;
     }
 
@@ -471,7 +481,7 @@ st.markdown("""
     }
 
     /* ===== SIDEBAR ===== */
-    [data-testid="stSidebar"] { background: linear-gradient(180deg, var(--navy) 0%, #1E3A5F 100%); }
+    [data-testid="stSidebar"] { background: linear-gradient(180deg, #0F1B2D 0%, #1E3A5F 100%); }
     [data-testid="stSidebar"] * { color: #FFFFFF !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background: rgba(255,255,255,0.06);
@@ -561,7 +571,7 @@ def main_auth_flow():
             log_cls = "active" if mode == "login" else ""
             st.markdown(f"""
                 <div style="max-width:560px;margin:0 auto;">
-                <div class="auth-tabs" style="border-radius:20px 20px 0 0;border:1px solid var(--border);border-bottom:none;">
+                <div class="auth-tabs" style="border-radius:20px 20px 0 0;border:1px solid #E2E8F0;border-bottom:none;">
                     <div class="auth-tab {reg_cls}">
                         <span class="auth-tab-icon">📝</span>Kayıt Ol
                     </div>
