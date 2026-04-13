@@ -16,6 +16,7 @@ from db_utils import (
     delete_teacher, assign_student_to_teacher,
     get_students_by_teacher, get_unassigned_students, format_grade
 )
+from analytics_dashboard import render_analytics_dashboard
 
 # --- API AYARLARI ---
 load_dotenv()
@@ -2341,6 +2342,19 @@ def app():
                         st.rerun()
             else:
                 st.info("Devam etmek için onay kutucuğunu işaretleyin.")
+
+    # --- ANALİTİK DASHBOARD / ÖĞRENCİ YÖNETİMİ SEÇİMİ ---
+    st.markdown("---")
+    panel_mode = st.radio(
+        "Panel Görünümü:",
+        ["👨‍🎓 Öğrenci Yönetimi", "📊 Analitik Dashboard"],
+        horizontal=True,
+        key="panel_mode_radio"
+    )
+
+    if panel_mode == "📊 Analitik Dashboard":
+        render_analytics_dashboard(data)
+        return  # Dashboard gösterildiyse geri dönelim — öğrenci yönetimi gösterilmesin
 
     # --- ÖĞRETMEN YÖNETİMİ (Yönetici panelinin ana içeriğinde) ---
     st.markdown("---")

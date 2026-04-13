@@ -9,3 +9,4 @@ reportlab
 openpyxl
 Pillow
 python-docx
+plotly
