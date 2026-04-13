@@ -1176,23 +1176,38 @@ def app():
         sc1, sc2, sc3 = st.columns(3)
         with sc1:
             st.markdown(f"""
-                <div class="stat-box">
-                    <div class="stat-number">{completed_count}/{total_count}</div>
+                <div class="glass-stat-card scroll-reveal" style="--card-accent: #2563EB; --card-accent-end: #3B82F6;">
+                    <div class="stat-icon" style="background: rgba(37,99,235,0.08);">📝</div>
+                    <div class="stat-value"><span class="count-up-number" data-target="{completed_count}">{completed_count}</span>/{total_count}</div>
                     <div class="stat-label">Tamamlanan Test</div>
                 </div>
             """, unsafe_allow_html=True)
         with sc2:
+            # Score Ring
+            stroke_offset = round(283 - (283 * pct / 100))
+            ring_color = "#10B981" if pct >= 80 else "#2563EB" if pct >= 50 else "#F59E0B"
             st.markdown(f"""
-                <div class="stat-box">
-                    <div class="stat-number">%{pct}</div>
+                <div class="glass-stat-card scroll-reveal delay-1" style="--card-accent: {ring_color}; --card-accent-end: {ring_color}; text-align: center;">
+                    <div class="score-ring-container" style="margin: 0 auto 8px auto;">
+                        <svg width="90" height="90" viewBox="0 0 100 100">
+                            <circle class="score-ring-bg" cx="50" cy="50" r="45"/>
+                            <circle class="score-ring-fill" cx="50" cy="50" r="45"
+                                stroke="{ring_color}"
+                                stroke-dasharray="283"
+                                stroke-dashoffset="{stroke_offset}"
+                                style="animation: ring-fill 1.5s cubic-bezier(0.16, 1, 0.3, 1);"/>
+                        </svg>
+                        <span class="score-ring-text">%{pct}</span>
+                    </div>
                     <div class="stat-label">İlerleme Oranı</div>
                 </div>
             """, unsafe_allow_html=True)
         with sc3:
             remaining = total_count - completed_count
             st.markdown(f"""
-                <div class="stat-box">
-                    <div class="stat-number">{remaining}</div>
+                <div class="glass-stat-card scroll-reveal delay-2" style="--card-accent: #F59E0B; --card-accent-end: #EF4444;">
+                    <div class="stat-icon" style="background: rgba(245,158,11,0.08);">⏳</div>
+                    <div class="stat-value"><span class="count-up-number" data-target="{remaining}">{remaining}</span></div>
                     <div class="stat-label">Kalan Test</div>
                 </div>
             """, unsafe_allow_html=True)
@@ -1384,8 +1399,18 @@ def app():
     # SAYFA 2: BAŞARI EKRANI
     # ============================================================
     elif st.session_state.page == "success_screen":
+        # Confetti animation on test completion
         st.markdown("""
-            <div class="motivation-box">
+            <script>
+                if (window.launchConfetti && !window._confettiLaunched) {
+                    window._confettiLaunched = true;
+                    setTimeout(function() { window.launchConfetti(); }, 300);
+                }
+            </script>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+            <div class="motivation-box" style="animation: fadeUp 0.6s ease-out;">
                 <h3>🎉 Harika İş Çıkardın!</h3>
                 <p>Testi başarıyla tamamladın. Sonuçların öğretmenine iletildi.</p>
             </div>

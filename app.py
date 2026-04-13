@@ -514,7 +514,476 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="bg-pattern"></div>', unsafe_allow_html=True)
+# =========================================================
+# 🎨 PREMIUM UI OVERHAUL — Sinematik Animasyonlar
+# =========================================================
+st.markdown("""
+<style>
+    /* ===== ANIMATED BLOB BACKGROUNDS ===== */
+    @keyframes blob-float-1 {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        25% { transform: translate(30px, -50px) scale(1.1); }
+        50% { transform: translate(-20px, 20px) scale(0.95); }
+        75% { transform: translate(40px, 30px) scale(1.05); }
+    }
+    @keyframes blob-float-2 {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        33% { transform: translate(-40px, 30px) scale(1.08); }
+        66% { transform: translate(20px, -40px) scale(0.92); }
+    }
+    @keyframes blob-float-3 {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        20% { transform: translate(50px, 20px) scale(1.12); }
+        40% { transform: translate(-30px, -30px) scale(0.96); }
+        60% { transform: translate(10px, 40px) scale(1.04); }
+        80% { transform: translate(-40px, 10px) scale(0.98); }
+    }
+    .mesh-gradient-bg {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        pointer-events: none;
+        z-index: -2;
+        overflow: hidden;
+    }
+    .mesh-gradient-bg .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.5;
+    }
+    .mesh-gradient-bg .blob-1 {
+        width: 500px; height: 500px;
+        top: -10%; left: -5%;
+        background: radial-gradient(circle, rgba(37,99,235,0.12) 0%, transparent 70%);
+        animation: blob-float-1 20s ease-in-out infinite;
+    }
+    .mesh-gradient-bg .blob-2 {
+        width: 400px; height: 400px;
+        top: 50%; right: -5%;
+        background: radial-gradient(circle, rgba(220,38,38,0.08) 0%, transparent 70%);
+        animation: blob-float-2 25s ease-in-out infinite;
+    }
+    .mesh-gradient-bg .blob-3 {
+        width: 350px; height: 350px;
+        bottom: -10%; left: 30%;
+        background: radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 70%);
+        animation: blob-float-3 22s ease-in-out infinite;
+    }
+
+    /* ===== WORD-BY-WORD REVEAL ===== */
+    @keyframes word-reveal {
+        0% { opacity: 0; transform: translateY(20px) rotateX(-20deg); filter: blur(4px); }
+        100% { opacity: 1; transform: translateY(0) rotateX(0); filter: blur(0); }
+    }
+    .word-reveal-container .word {
+        display: inline-block;
+        opacity: 0;
+        animation: word-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        margin-right: 8px;
+    }
+    .word-reveal-container .word:nth-child(1) { animation-delay: 0.1s; }
+    .word-reveal-container .word:nth-child(2) { animation-delay: 0.3s; }
+    .word-reveal-container .word:nth-child(3) { animation-delay: 0.5s; }
+    .word-reveal-container .word:nth-child(4) { animation-delay: 0.7s; }
+    .word-reveal-container .word:nth-child(5) { animation-delay: 0.9s; }
+
+    /* ===== SCROLL-TRIGGERED FADE-IN ===== */
+    .scroll-reveal {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .scroll-reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .scroll-reveal.delay-1 { transition-delay: 0.1s; }
+    .scroll-reveal.delay-2 { transition-delay: 0.2s; }
+    .scroll-reveal.delay-3 { transition-delay: 0.3s; }
+    .scroll-reveal.delay-4 { transition-delay: 0.4s; }
+
+    /* ===== COUNT-UP COUNTER ===== */
+    @keyframes count-pop {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+        100% { transform: scale(1); }
+    }
+    .count-up-number {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 900;
+        font-size: 2.4rem;
+        color: #0F1B2D;
+        line-height: 1;
+    }
+    .count-up-number.animated {
+        animation: count-pop 0.3s ease-out;
+    }
+
+    /* ===== GLASSMORPHISM STAT CARDS ===== */
+    .glass-stat-card {
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 20px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 4px 24px rgba(15,23,42,0.06);
+    }
+    .glass-stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--card-accent, #2563EB), var(--card-accent-end, #06B6D4));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .glass-stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(15,23,42,0.12);
+    }
+    .glass-stat-card:hover::before {
+        opacity: 1;
+    }
+    .glass-stat-card .stat-icon {
+        width: 48px; height: 48px;
+        border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem;
+        margin-bottom: 14px;
+    }
+    .glass-stat-card .stat-value {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2rem;
+        font-weight: 800;
+        color: #0F172A;
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+    .glass-stat-card .stat-label {
+        font-size: 0.82rem;
+        color: #64748B;
+        font-weight: 500;
+    }
+
+    /* ===== CONFETTI ===== */
+    @keyframes confetti-fall {
+        0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+        80% { opacity: 1; }
+        100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    .confetti-container {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        pointer-events: none;
+        z-index: 9999;
+        overflow: hidden;
+    }
+    .confetti-piece {
+        position: absolute;
+        width: 10px; height: 10px;
+        top: -10px;
+        animation: confetti-fall 3s ease-in-out forwards;
+    }
+
+    /* ===== SCORE RING ===== */
+    @keyframes ring-fill {
+        from { stroke-dashoffset: 283; }
+    }
+    .score-ring-container {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .score-ring-container svg {
+        transform: rotate(-90deg);
+    }
+    .score-ring-bg {
+        fill: none;
+        stroke: #E2E8F0;
+        stroke-width: 8;
+    }
+    .score-ring-fill {
+        fill: none;
+        stroke-width: 8;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .score-ring-text {
+        position: absolute;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800;
+        font-size: 1.6rem;
+        color: #0F172A;
+    }
+
+    /* ===== SKELETON LOADING ===== */
+    @keyframes skeleton-sweep {
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
+    }
+    .skeleton {
+        background: linear-gradient(90deg, #E2E8F0 25%, #F1F5F9 50%, #E2E8F0 75%);
+        background-size: 200% 100%;
+        animation: skeleton-sweep 1.5s ease-in-out infinite;
+        border-radius: 8px;
+    }
+    .skeleton-text { height: 14px; margin-bottom: 8px; width: 80%; }
+    .skeleton-title { height: 24px; margin-bottom: 12px; width: 60%; }
+    .skeleton-card {
+        height: 120px;
+        border-radius: 16px;
+        margin-bottom: 16px;
+    }
+
+    /* ===== TOAST NOTIFICATIONS ===== */
+    @keyframes toast-slide-in {
+        from { transform: translateX(100%) translateY(0); opacity: 0; }
+        to { transform: translateX(0) translateY(0); opacity: 1; }
+    }
+    @keyframes toast-slide-out {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(120%); opacity: 0; }
+    }
+    .toast-container {
+        position: fixed;
+        top: 20px; right: 20px;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .toast {
+        background: #FFFFFF;
+        border-radius: 14px;
+        padding: 14px 20px;
+        box-shadow: 0 12px 40px rgba(15,23,42,0.15);
+        border-left: 4px solid #2563EB;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.88rem;
+        color: #0F172A;
+        animation: toast-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        max-width: 340px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .toast.success { border-left-color: #10B981; }
+    .toast.error { border-left-color: #DC2626; }
+    .toast.warning { border-left-color: #F59E0B; }
+    .toast.hiding { animation: toast-slide-out 0.3s ease-in forwards; }
+
+    /* ===== CUSTOM SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #CBD5E1 0%, #94A3B8 100%);
+        border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: #64748B; }
+    * { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+
+    /* ===== FOCUS INDICATORS ===== */
+    :focus-visible {
+        outline: 2px solid #2563EB !important;
+        outline-offset: 2px !important;
+        border-radius: 4px;
+    }
+    ::selection {
+        background: rgba(37,99,235,0.15);
+        color: #0F172A;
+    }
+
+    /* ===== SIDEBAR GLASSMORPHISM ===== */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0F1B2D 0%, #162D50 50%, #1E3A5F 100%) !important;
+        backdrop-filter: blur(12px);
+    }
+    [data-testid="stSidebar"]::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: radial-gradient(circle at 50% 0%, rgba(37,99,235,0.08) 0%, transparent 60%);
+        pointer-events: none;
+    }
+
+    /* ===== HOVER GLOW EFFECT ===== */
+    .hover-glow {
+        transition: all 0.3s ease;
+    }
+    .hover-glow:hover {
+        box-shadow: 0 0 30px rgba(37,99,235,0.15), 0 8px 24px rgba(15,23,42,0.08);
+    }
+
+    /* ===== TEST CARD ENHANCED ===== */
+    .test-card-enhanced {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 18px;
+        padding: 20px;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    .test-card-enhanced::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, rgba(37,99,235,0.02) 0%, rgba(6,182,212,0.02) 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .test-card-enhanced:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 50px rgba(15,23,42,0.12);
+        border-color: rgba(37,99,235,0.2);
+    }
+    .test-card-enhanced:hover::after { opacity: 1; }
+
+    /* ===== MOBILE TOUCH FEEDBACK ===== */
+    @media (hover: none) and (pointer: coarse) {
+        .stButton > button:active {
+            transform: scale(0.97) !important;
+            transition: transform 0.1s ease !important;
+        }
+        .test-card-enhanced:active {
+            transform: scale(0.98) !important;
+        }
+        .chip:active {
+            transform: scale(0.95);
+            background: #EFF6FF;
+        }
+    }
+
+    /* ===== SMOOTH SCROLL ===== */
+    html { scroll-behavior: smooth; }
+
+    /* ===== PREFERS-REDUCED-MOTION ===== */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+        .mesh-gradient-bg .blob { animation: none !important; }
+        .hero-title { animation: none !important; }
+        .scroll-reveal { opacity: 1 !important; transform: none !important; }
+        .word-reveal-container .word { opacity: 1 !important; transform: none !important; animation: none !important; }
+    }
+</style>
+
+<!-- Animated Mesh Gradient Blobs -->
+<div class="mesh-gradient-bg">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+</div>
+
+<!-- Scroll Reveal Observer -->
+<script>
+(function() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+    function observeElements() {
+        document.querySelectorAll('.scroll-reveal:not(.visible)').forEach(el => observer.observe(el));
+    }
+    observeElements();
+    // MutationObserver for Streamlit dynamic content
+    const mo = new MutationObserver(() => { setTimeout(observeElements, 100); });
+    mo.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
+<!-- Count-Up Animation -->
+<script>
+(function() {
+    function animateCountUp(el) {
+        const target = parseInt(el.getAttribute('data-target'), 10);
+        if (isNaN(target)) return;
+        const duration = 1500;
+        const start = performance.now();
+        function update(now) {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(eased * target);
+            if (progress < 1) requestAnimationFrame(update);
+            else { el.textContent = target; el.classList.add('animated'); }
+        }
+        requestAnimationFrame(update);
+    }
+
+    const countObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !entry.target.dataset.counted) {
+                entry.target.dataset.counted = 'true';
+                animateCountUp(entry.target);
+            }
+        });
+    }, { threshold: 0.5 });
+
+    function observeCounters() {
+        document.querySelectorAll('.count-up-number:not([data-counted])').forEach(el => countObserver.observe(el));
+    }
+    observeCounters();
+    const mo = new MutationObserver(() => { setTimeout(observeCounters, 100); });
+    mo.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
+<!-- Toast System -->
+<script>
+window.showToast = function(message, type) {
+    type = type || 'success';
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.innerHTML = '<span>' + (icons[type] || '') + '</span><span>' + message + '</span>';
+    container.appendChild(toast);
+    setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, 3500);
+};
+</script>
+
+<!-- Confetti System -->
+<script>
+window.launchConfetti = function() {
+    const container = document.createElement('div');
+    container.className = 'confetti-container';
+    document.body.appendChild(container);
+    const colors = ['#2563EB', '#DC2626', '#F59E0B', '#10B981', '#8B5CF6', '#06B6D4', '#EC4899'];
+    for (let i = 0; i < 60; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = Math.random() * 100 + '%';
+        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDelay = Math.random() * 1.5 + 's';
+        piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+        piece.style.width = (6 + Math.random() * 8) + 'px';
+        piece.style.height = (6 + Math.random() * 8) + 'px';
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        container.appendChild(piece);
+    }
+    setTimeout(() => container.remove(), 4500);
+};
+</script>
+""", unsafe_allow_html=True)
 
 # --- SESSION STATE ---
 for key, default in [('role', None), ('student_id', None), ('student_name', None),
@@ -549,7 +1018,11 @@ def render_hero_header():
     st.markdown(f"""
         <div class="hero-container">
             {logo_html}
-            <div class="hero-title">Eğitim Check Up</div>
+            <div class="hero-title word-reveal-container">
+                <span class="word">Eğitim</span>
+                <span class="word">Check</span>
+                <span class="word">Up</span>
+            </div>
             <div class="hero-subtitle">Kişisel Eğitim & Kariyer Analiz Merkezi</div>
         </div>
         <div class="hero-divider"></div>
