@@ -3386,6 +3386,93 @@ def teacher_panel_app():
 
     st.markdown("---")
 
+    # ========================================================
+    # 🎨 TOPLU GRAFİK ANALİZ RAPORU (ZIP olarak indir)
+    # ========================================================
+    with st.expander("🎨 Toplu Grafik Analiz Raporları (ZIP)", expanded=False):
+        st.markdown("""
+        **Lacivert/altın kurumsal tasarım + yalın Türkçe bütünsel analiz.**  
+        Tüm öğrencileriniz için ayrı ayrı profesyonel grafik analiz PDF'i üretilir ve tek ZIP olarak inilir.
+        
+        ⏱️ Öğrenci başına yaklaşık 20-40 saniye sürer. {n} öğrenci = ~{dak} dakika.
+        """.format(n=total_students, dak=round(total_students * 0.5)))
+
+        # Sadece test çözmüş öğrencileri filtrele
+        testable = [d for d in data if d.get("tests")]
+        if not testable:
+            st.info("Toplu rapor için öğrencilerin en az 1 test çözmüş olması gerekir.")
+        else:
+            st.caption(f"📊 {len(testable)} öğrenci rapor üretmeye hazır (en az 1 test çözmüş).")
+
+            if st.button("🚀 Toplu Grafik Analiz Başlat", type="primary",
+                         key="btn_bulk_graph_analysis"):
+                try:
+                    import zipfile
+                    import io as _io
+                    from grafik_analiz_engine import (
+                        generate_graphic_analysis_pdf,
+                        generate_graphic_report_filename,
+                    )
+
+                    zip_buf = _io.BytesIO()
+                    progress = st.progress(0)
+                    status = st.empty()
+                    success_count = 0
+                    error_log = []
+
+                    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                        for i, sdata in enumerate(testable):
+                            s_name = sdata["info"].name
+                            status.info(f"🎨 [{i+1}/{len(testable)}] {s_name} için rapor hazırlanıyor...")
+                            try:
+                                s_history = get_student_analysis_history(sdata["info"].id)
+                                pdf_bytes = generate_graphic_analysis_pdf(
+                                    sdata,
+                                    analysis_history=s_history,
+                                    get_ai_analysis_fn=get_ai_analysis,
+                                    format_grade_fn=format_grade,
+                                )
+                                fname = generate_graphic_report_filename(s_name)
+                                zf.writestr(fname, pdf_bytes.getvalue())
+                                success_count += 1
+                            except Exception as _e_bulk:
+                                error_log.append(f"• {s_name}: {str(_e_bulk)[:120]}")
+                            progress.progress((i + 1) / len(testable))
+
+                    status.empty()
+                    progress.empty()
+
+                    if success_count > 0:
+                        st.session_state["_bulk_graph_zip"] = zip_buf.getvalue()
+                        st.session_state["_bulk_graph_zip_name"] = f"Grafik_Analiz_Raporlari_{teacher_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
+                        st.success(f"✅ {success_count}/{len(testable)} rapor başarıyla üretildi.")
+                        if error_log:
+                            with st.expander(f"⚠️ {len(error_log)} hata"):
+                                for err in error_log:
+                                    st.caption(err)
+                    else:
+                        st.error("❌ Hiç rapor üretilemedi. Hataları kontrol edin.")
+                        if error_log:
+                            for err in error_log:
+                                st.code(err)
+
+                except Exception as _e_outer:
+                    import traceback
+                    st.error(f"Toplu rapor motor hatası: {_e_outer}")
+                    with st.expander("Detay"):
+                        st.code(traceback.format_exc())
+
+            # Hazırlanmış ZIP varsa indirme butonu
+            if st.session_state.get("_bulk_graph_zip"):
+                st.download_button(
+                    label="⬇️ Toplu ZIP Dosyasını İndir",
+                    data=st.session_state["_bulk_graph_zip"],
+                    file_name=st.session_state["_bulk_graph_zip_name"],
+                    mime="application/zip",
+                    key="bulk_graph_zip_dl",
+                    type="primary",
+                )
+
     # Öğrenci sekmeli görünüm
     student_names = [d["info"].name for d in data]
     student_tabs = st.tabs(student_names)
@@ -3428,7 +3515,7 @@ def teacher_panel_app():
             st.markdown("#### 📥 Öğrenci Raporlarını İndir")
             student_history = get_student_analysis_history(info.id)
 
-            col_dl1, col_dl2, col_dl3 = st.columns(3)
+            col_dl1, col_dl2, col_dl3, col_dl4 = st.columns(4)
 
             with col_dl1:
                 try:
@@ -3481,6 +3568,50 @@ def teacher_panel_app():
                     )
                 except Exception as _e_xlsx:
                     st.caption(f"Excel hatası: {str(_e_xlsx)[:80]}")
+
+            with col_dl4:
+                # 🎨 Grafik Bazlı Analiz PDF'i (yeni özellik)
+                if st.button(
+                    "🎨 Grafik Analiz PDF",
+                    key=f"tp_graph_btn_{info.id}",
+                    type="secondary",
+                    use_container_width=True,
+                    help="Profesyonel lacivert/altın tasarım + yalın Türkçe bütünsel analiz. 20-40 sn sürebilir."
+                ):
+                    try:
+                        from grafik_analiz_engine import (
+                            generate_graphic_analysis_pdf,
+                            generate_graphic_report_filename,
+                        )
+                        with st.spinner("🎨 Grafikler çiziliyor ve AI analizi hazırlanıyor (20-40 sn)..."):
+                            graphic_pdf = generate_graphic_analysis_pdf(
+                                student_data,
+                                analysis_history=student_history,
+                                get_ai_analysis_fn=get_ai_analysis,
+                                format_grade_fn=format_grade,
+                            )
+                            graphic_filename = generate_graphic_report_filename(info.name)
+                            # Buffer'ı session state'e koy ki download butonu gözüksün
+                            st.session_state[f"tp_graph_buf_{info.id}"] = graphic_pdf.getvalue()
+                            st.session_state[f"tp_graph_name_{info.id}"] = graphic_filename
+                        st.success("✅ Hazır! Aşağıdaki butonla indirin.")
+                    except Exception as _e_graph:
+                        import traceback
+                        st.error(f"Hata: {_e_graph}")
+                        with st.expander("Detay"):
+                            st.code(traceback.format_exc())
+
+                # Hazırlanmış PDF varsa indirme butonu göster
+                if st.session_state.get(f"tp_graph_buf_{info.id}"):
+                    st.download_button(
+                        label="⬇️ Grafik Raporu İndir",
+                        data=st.session_state[f"tp_graph_buf_{info.id}"],
+                        file_name=st.session_state[f"tp_graph_name_{info.id}"],
+                        mime="application/pdf",
+                        key=f"tp_graph_dl_{info.id}",
+                        type="primary",
+                        use_container_width=True,
+                    )
 
             # Test sonuçları
             st.markdown("#### 📝 Test Sonuçları")
