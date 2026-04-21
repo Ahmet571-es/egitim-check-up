@@ -1051,3 +1051,86 @@ def bootstrap_first_teacher(name, password):
         return False, f"Hata: {str(e)[:200]}"
     finally:
         conn.close()
+
+
+def force_create_missing_tables():
+    """
+    Eksik tabloları TEKer TEKer oluşturur ve her birinin durumunu rapor eder.
+    init_db() içinde hata yutulduğunda manuel onarım için.
+    """
+    results = {}
+    conn, engine = get_connection()
+    c = conn.cursor()
+
+    table_defs = {}
+    if engine == "postgresql":
+        table_defs["teachers"] = """
+            CREATE TABLE IF NOT EXISTS teachers (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                password TEXT NOT NULL,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """
+        table_defs["students"] = """
+            CREATE TABLE IF NOT EXISTS students (
+                id SERIAL PRIMARY KEY,
+                name TEXT,
+                username TEXT UNIQUE,
+                password TEXT,
+                age INTEGER,
+                gender TEXT,
+                grade TEXT,
+                login_count INTEGER DEFAULT 0,
+                secret_word TEXT,
+                teacher_id INTEGER
+            )
+        """
+        table_defs["results"] = """
+            CREATE TABLE IF NOT EXISTS results (
+                id SERIAL PRIMARY KEY,
+                student_id INTEGER,
+                test_name TEXT,
+                raw_answers TEXT,
+                scores TEXT,
+                report TEXT,
+                date TIMESTAMP DEFAULT NOW()
+            )
+        """
+        table_defs["analysis_history"] = """
+            CREATE TABLE IF NOT EXISTS analysis_history (
+                id SERIAL PRIMARY KEY,
+                student_id INTEGER,
+                combination TEXT,
+                ai_report TEXT,
+                date TIMESTAMP DEFAULT NOW()
+            )
+        """
+
+    for table_name, sql in table_defs.items():
+        try:
+            c.execute(sql)
+            conn.commit()
+            results[table_name] = "✅ OK"
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            results[table_name] = f"❌ {str(e)[:150]}"
+
+    # Migration: teacher_id column (belki students vardı ama teacher_id yoktu)
+    try:
+        c.execute("ALTER TABLE students ADD COLUMN IF NOT EXISTS teacher_id INTEGER")
+        conn.commit()
+        results["students.teacher_id (migration)"] = "✅ OK"
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        results["students.teacher_id (migration)"] = f"⚠️ {str(e)[:150]}"
+
+    conn.close()
+    return results

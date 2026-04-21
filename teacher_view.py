@@ -2243,6 +2243,25 @@ def app():
             if last_err:
                 st.warning("Son runtime hatası:")
                 st.code(last_err, language="text")
+
+            # Tabloları Onar butonu
+            missing_teachers = isinstance(diag.get("teachers_count"), int) is False or diag.get("teachers_error")
+            if errs or missing_teachers or st.session_state.get("_show_repair_btn"):
+                st.session_state["_show_repair_btn"] = True
+                st.markdown("---")
+                st.markdown("#### 🔧 Tabloları Onar")
+                st.caption("Eksik veya bozuk tabloları yeniden oluşturur. Mevcut verilere dokunmaz (`CREATE TABLE IF NOT EXISTS`).")
+                if st.button("🛠️ Eksik Tabloları Oluştur", type="primary", key="btn_fix_tables"):
+                    from db_utils import force_create_missing_tables
+                    fix_results = force_create_missing_tables()
+                    st.markdown("**Sonuçlar:**")
+                    for tbl, status in fix_results.items():
+                        st.code(f"{tbl}: {status}", language="text")
+                    if all("✅" in s or "⚠️" in s for s in fix_results.values()):
+                        st.success("✅ Onarım tamamlandı! Şimdi sayfayı yenileyin.")
+                        st.balloons()
+                    else:
+                        st.error("Bazı tablolar oluşturulamadı. Yukarıdaki hataları Claude'a gönderin.")
     except Exception as _e_diag:
         st.caption(f"(Sistem Sağlığı yüklenemedi: {_e_diag})")
 
