@@ -294,12 +294,45 @@ def build_chart_for_test(test_name, scores):
         return None, None
 
     # Numeric değerleri olan anahtarları al
-    numeric_scores = {k: _to_float(v) for k, v in scores.items()
-                      if isinstance(v, (int, float, str))
-                      and _to_float(v) >= 0}
+    # Filtreleme: metin alanları ("dominant": "V" gibi) ve 0 değerler düşür
+    numeric_scores = {}
+    for k, v in scores.items():
+        # Metin değerleri (örn. "dominant": "V") float'a çevrilemez, atla
+        if isinstance(v, str) and not v.replace(".", "", 1).replace("-", "", 1).isdigit():
+            continue
+        val = _to_float(v)
+        if val <= 0:
+            continue
+        # Anahtar adı metadata gibiyse atla
+        k_lower = str(k).lower().strip()
+        if k_lower in ("dominant", "baskın", "baskin", "total", "toplam", "max", "maksimum"):
+            continue
+        numeric_scores[k] = val
 
     if not numeric_scores:
         return None, None
+
+    # Kısaltmaları tam isme çevir (VARK vs için okunaklılık)
+    label_map_vark = {
+        "V": "Görsel", "A": "İşitsel", "R": "Okuma/Yazma", "K": "Kinestetik",
+    }
+    label_map_holland = {
+        "R": "Gerçekçi", "I": "Araştırıcı", "A": "Sanatsal",
+        "S": "Sosyal", "E": "Girişimci", "C": "Geleneksel",
+    }
+    tn_low = (test_name or "").lower()
+    label_map = None
+    if "vark" in tn_low or "öğrenme stil" in tn_low:
+        label_map = label_map_vark
+    elif "holland" in tn_low:
+        label_map = label_map_holland
+
+    if label_map:
+        remapped = {}
+        for k, v in numeric_scores.items():
+            new_key = label_map.get(str(k).strip().upper(), k)
+            remapped[new_key] = v
+        numeric_scores = remapped
 
     tn = (test_name or "").lower()
 
@@ -496,11 +529,43 @@ def _header_footer(canvas, doc):
     canvas.restoreState()
 
 
+def _strip_emojis_for_pdf(text):
+    """DejaVu Sans'ın desteklemediği emojileri PDF için temizler."""
+    import re
+    # Tüm emoji unicode aralıklarını temizle
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # emoticons
+        "\U0001F300-\U0001F5FF"  # symbols & pictographs
+        "\U0001F680-\U0001F6FF"  # transport & map
+        "\U0001F700-\U0001F77F"  # alchemical
+        "\U0001F780-\U0001F7FF"  # geometric shapes extended
+        "\U0001F800-\U0001F8FF"  # supplemental arrows-c
+        "\U0001F900-\U0001F9FF"  # supplemental symbols & pictographs
+        "\U0001FA00-\U0001FA6F"  # chess, etc.
+        "\U0001FA70-\U0001FAFF"  # symbols & pictographs extended-a
+        "\U00002600-\U000027BF"  # miscellaneous symbols
+        "\U00002700-\U000027BF"  # dingbats
+        "\u2300-\u23FF"          # miscellaneous technical
+        "\u2B00-\u2BFF"          # arrows
+        "\u3000-\u303F"          # CJK symbols
+        "]+", flags=re.UNICODE)
+    cleaned = emoji_pattern.sub("", text)
+    # Fazla boşlukları temizle
+    import re as _re
+    cleaned = _re.sub(r"  +", " ", cleaned)
+    cleaned = _re.sub(r"^[ \t]+", "", cleaned, flags=re.MULTILINE)
+    return cleaned
+
+
 def _parse_markdown_to_flowables(md_text, styles):
     """
     Basit markdown → ReportLab flowable dönüştürücü.
     ## H1, ### H2, - madde, **bold**, *italic* destekler.
     """
+    # Emojileri temizle (DejaVu Sans desteklemiyor)
+    md_text = _strip_emojis_for_pdf(md_text)
+
     flow = []
     lines = md_text.split("\n")
     paragraph_buf = []
@@ -660,7 +725,7 @@ def generate_graphic_analysis_pdf(student_data, analysis_history=None,
 
     # ======= AI ANALİZ =======
     if ai_report_md and not ai_report_md.startswith("⚠️"):
-        story.append(Paragraph("📖 Analiz Raporu", styles["h1"]))
+        story.append(Paragraph("Analiz Raporu", styles["h1"]))
         story.append(Spacer(1, 6))
         story.extend(_parse_markdown_to_flowables(ai_report_md, styles))
     elif ai_report_md:
@@ -676,7 +741,7 @@ def generate_graphic_analysis_pdf(student_data, analysis_history=None,
     # ======= GRAFİKLER BÖLÜMÜ =======
     if charts:
         story.append(PageBreak())
-        story.append(Paragraph("📊 Test Grafikleri", styles["h1"]))
+        story.append(Paragraph("Test Grafikleri", styles["h1"]))
         story.append(Paragraph(
             "Aşağıdaki grafikler, raporda bahsedilen değerlendirmelerin "
             "görsel özetidir. Her grafik bir test sonucunu farklı açıdan "

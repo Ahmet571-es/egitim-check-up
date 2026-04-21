@@ -22,7 +22,7 @@ from analytics_dashboard import render_analytics_dashboard
 load_dotenv()
 
 # Claude model — ortam değişkeni veya Streamlit secrets ile değiştirilebilir
-DEFAULT_MODEL = "claude-sonnet-4-6-20250217"
+DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 def _get_claude_model():
     try:
         if "CLAUDE_MODEL" in st.secrets:
