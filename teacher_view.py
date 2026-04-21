@@ -3391,20 +3391,48 @@ def teacher_panel_app():
     # ========================================================
     with st.expander("🎨 Toplu Grafik Analiz Raporları (ZIP)", expanded=False):
         st.markdown("""
-        **Lacivert/altın kurumsal tasarım + yalın Türkçe bütünsel analiz.**  
-        Tüm öğrencileriniz için ayrı ayrı profesyonel grafik analiz PDF'i üretilir ve tek ZIP olarak inilir.
+        **Lacivert/altın kurumsal tasarım + yalın Türkçe, tavsiye niteliğinde rapor.**
         
-        ⏱️ Öğrenci başına yaklaşık 20-40 saniye sürer. {n} öğrenci = ~{dak} dakika.
-        """.format(n=total_students, dak=round(total_students * 0.5)))
+        Rapor türü seçin:
+        - **Harmanlanmış**: Öğrencinin tüm testleri birleşik, tek kapsamlı rapor
+        - **Tekil**: Öğrencinin her testi için ayrı ayrı PDF
+        """)
 
         # Sadece test çözmüş öğrencileri filtrele
         testable = [d for d in data if d.get("tests")]
         if not testable:
             st.info("Toplu rapor için öğrencilerin en az 1 test çözmüş olması gerekir.")
         else:
-            st.caption(f"📊 {len(testable)} öğrenci rapor üretmeye hazır (en az 1 test çözmüş).")
+            # Tahmini süre
+            total_tests_all = sum(len(d.get("tests", [])) for d in testable)
 
-            if st.button("🚀 Toplu Grafik Analiz Başlat", type="primary",
+            report_types = st.multiselect(
+                "Hangi tür rapor üretilsin?",
+                options=["Harmanlanmış (her öğrenci için 1 bütünsel PDF)",
+                         "Tekil (her testin ayrı PDF'i)"],
+                default=["Harmanlanmış (her öğrenci için 1 bütünsel PDF)"],
+                key="bulk_graph_report_types"
+            )
+
+            est_holistic = len(testable) * 25  # saniye
+            est_single = total_tests_all * 20
+            total_sec = 0
+            if any("Harmanlanmış" in t for t in report_types):
+                total_sec += est_holistic
+            if any("Tekil" in t for t in report_types):
+                total_sec += est_single
+
+            if total_sec > 0:
+                st.caption(f"📊 {len(testable)} öğrenci, {total_tests_all} test toplam · "
+                          f"⏱️ ~{total_sec // 60} dakika {total_sec % 60} saniye sürebilir")
+
+            # Duplicate uyarı
+            if st.session_state.get("_bulk_graph_zip"):
+                st.warning("⚠️ Daha önce bir toplu rapor üretildi. Yeniden üretirseniz öncekinin üzerine yazılır.")
+
+            if not report_types:
+                st.caption("⬆️ En az bir rapor türü seçin.")
+            elif st.button("🚀 Toplu Üretimi Başlat", type="primary",
                          key="btn_bulk_graph_analysis"):
                 try:
                     import zipfile
@@ -3412,46 +3440,91 @@ def teacher_panel_app():
                     from grafik_analiz_engine import (
                         generate_graphic_analysis_pdf,
                         generate_graphic_report_filename,
+                        generate_single_test_graphic_pdf,
+                        generate_single_test_report_filename,
                     )
+
+                    want_holistic = any("Harmanlanmış" in t for t in report_types)
+                    want_single = any("Tekil" in t for t in report_types)
 
                     zip_buf = _io.BytesIO()
                     progress = st.progress(0)
                     status = st.empty()
-                    success_count = 0
+                    success_h = 0
+                    success_s = 0
                     error_log = []
 
+                    # Toplam adım
+                    total_steps = 0
+                    if want_holistic:
+                        total_steps += len(testable)
+                    if want_single:
+                        total_steps += total_tests_all
+                    step = 0
+
                     with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
-                        for i, sdata in enumerate(testable):
+                        for sdata in testable:
                             s_name = sdata["info"].name
-                            status.info(f"🎨 [{i+1}/{len(testable)}] {s_name} için rapor hazırlanıyor...")
-                            try:
-                                s_history = get_student_analysis_history(sdata["info"].id)
-                                pdf_bytes = generate_graphic_analysis_pdf(
-                                    sdata,
-                                    analysis_history=s_history,
-                                    get_ai_analysis_fn=get_ai_analysis,
-                                    format_grade_fn=format_grade,
-                                )
-                                fname = generate_graphic_report_filename(s_name)
-                                zf.writestr(fname, pdf_bytes.getvalue())
-                                success_count += 1
-                            except Exception as _e_bulk:
-                                error_log.append(f"• {s_name}: {str(_e_bulk)[:120]}")
-                            progress.progress((i + 1) / len(testable))
+                            safe_name = s_name.replace(" ", "_").replace("/", "_")
+                            s_history = None
+
+                            # Harmanlanmış rapor
+                            if want_holistic:
+                                status.info(f"🎨 [{step+1}/{total_steps}] {s_name} — Harmanlanmış rapor...")
+                                try:
+                                    s_history = get_student_analysis_history(sdata["info"].id)
+                                    pdf_bytes = generate_graphic_analysis_pdf(
+                                        sdata,
+                                        analysis_history=s_history,
+                                        get_ai_analysis_fn=get_ai_analysis,
+                                        format_grade_fn=format_grade,
+                                    )
+                                    fname = f"{safe_name}/Harmanlanmis_{generate_graphic_report_filename(s_name)}"
+                                    zf.writestr(fname, pdf_bytes.getvalue())
+                                    success_h += 1
+                                except Exception as _eh:
+                                    error_log.append(f"• {s_name} (harmanlanmış): {str(_eh)[:120]}")
+                                step += 1
+                                progress.progress(min(step / total_steps, 1.0))
+
+                            # Tekil raporlar — her test için ayrı
+                            if want_single:
+                                for t_idx, t in enumerate(sdata.get("tests", [])):
+                                    t_name = t.get("test_name", f"Test_{t_idx}")
+                                    status.info(f"🎯 [{step+1}/{total_steps}] {s_name} — {t_name}...")
+                                    try:
+                                        pdf_bytes = generate_single_test_graphic_pdf(
+                                            sdata, t_idx,
+                                            get_ai_analysis_fn=get_ai_analysis,
+                                            format_grade_fn=format_grade,
+                                        )
+                                        fname = f"{safe_name}/Tekil_{generate_single_test_report_filename(s_name, t_name)}"
+                                        zf.writestr(fname, pdf_bytes.getvalue())
+                                        success_s += 1
+                                    except Exception as _es:
+                                        error_log.append(f"• {s_name} / {t_name}: {str(_es)[:120]}")
+                                    step += 1
+                                    progress.progress(min(step / total_steps, 1.0))
 
                     status.empty()
                     progress.empty()
 
-                    if success_count > 0:
+                    total_success = success_h + success_s
+                    if total_success > 0:
                         st.session_state["_bulk_graph_zip"] = zip_buf.getvalue()
                         st.session_state["_bulk_graph_zip_name"] = f"Grafik_Analiz_Raporlari_{teacher_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
-                        st.success(f"✅ {success_count}/{len(testable)} rapor başarıyla üretildi.")
+                        summary_parts = []
+                        if want_holistic:
+                            summary_parts.append(f"{success_h} harmanlanmış")
+                        if want_single:
+                            summary_parts.append(f"{success_s} tekil")
+                        st.success(f"✅ {' + '.join(summary_parts)} = toplam {total_success} PDF üretildi.")
                         if error_log:
                             with st.expander(f"⚠️ {len(error_log)} hata"):
                                 for err in error_log:
                                     st.caption(err)
                     else:
-                        st.error("❌ Hiç rapor üretilemedi. Hataları kontrol edin.")
+                        st.error("❌ Hiç rapor üretilemedi.")
                         if error_log:
                             for err in error_log:
                                 st.code(err)
@@ -3571,12 +3644,29 @@ def teacher_panel_app():
 
             with col_dl4:
                 # 🎨 Grafik Bazlı Analiz PDF'i (yeni özellik)
+                # Duplicate koruması: session state'de üretim zamanı var mı?
+                existing_ts = st.session_state.get(f"tp_graph_ts_{info.id}")
+
+                if existing_ts:
+                    st.caption(f"⚠️ Daha önce üretildi: {existing_ts}")
+                    confirm_regen = st.checkbox(
+                        "Yeniden üret",
+                        key=f"tp_graph_confirm_{info.id}",
+                        help="İşaretlerseniz yeni bir rapor üretilecek (Claude API ücreti olur)"
+                    )
+                else:
+                    confirm_regen = True
+
+                btn_label = "🎨 Yeniden Üret" if existing_ts else "🎨 Grafik Analiz PDF"
+                btn_disabled = bool(existing_ts) and not confirm_regen
+
                 if st.button(
-                    "🎨 Grafik Analiz PDF",
+                    btn_label,
                     key=f"tp_graph_btn_{info.id}",
                     type="secondary",
                     use_container_width=True,
-                    help="Profesyonel lacivert/altın tasarım + yalın Türkçe bütünsel analiz. 20-40 sn sürebilir."
+                    disabled=btn_disabled,
+                    help="Lacivert/altın profesyonel tasarım + yalın Türkçe bütünsel analiz. 20-40 sn sürebilir."
                 ):
                     try:
                         from grafik_analiz_engine import (
@@ -3594,6 +3684,7 @@ def teacher_panel_app():
                             # Buffer'ı session state'e koy ki download butonu gözüksün
                             st.session_state[f"tp_graph_buf_{info.id}"] = graphic_pdf.getvalue()
                             st.session_state[f"tp_graph_name_{info.id}"] = graphic_filename
+                            st.session_state[f"tp_graph_ts_{info.id}"] = datetime.now().strftime("%d.%m.%Y %H:%M")
                         st.success("✅ Hazır! Aşağıdaki butonla indirin.")
                     except Exception as _e_graph:
                         import traceback

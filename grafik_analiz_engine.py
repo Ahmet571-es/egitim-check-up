@@ -372,6 +372,76 @@ def build_chart_for_test(test_name, scores):
 # 🧠 AI PROMPT (yalın Türkçe, hem veli hem öğrenci için)
 # =============================================================
 
+def build_charts_for_test(test_name, scores):
+    """
+    Bir test için BİRDEN FAZLA grafik üretir — farklı açılardan aynı veriyi
+    gösterir. Dönüş: [(chart_type, bytesio), ...]
+    """
+    charts = []
+    primary, ptype = build_chart_for_test(test_name, scores)
+    if primary is None:
+        return []
+    charts.append((ptype, primary))
+
+    # İkincil grafik: ilkinden farklı bir tip seç
+    if not scores or not isinstance(scores, dict):
+        return charts
+
+    # Aynı filtreyi uygula (build_chart_for_test'teki gibi — ancak burada
+    # sadece numeric_scores lazım, tekrar oluştur)
+    numeric_scores = {}
+    for k, v in scores.items():
+        if isinstance(v, str) and not v.replace(".", "", 1).replace("-", "", 1).isdigit():
+            continue
+        val = _to_float(v)
+        if val <= 0:
+            continue
+        k_lower = str(k).lower().strip()
+        if k_lower in ("dominant", "baskın", "baskin", "total", "toplam", "max", "maksimum"):
+            continue
+        numeric_scores[k] = val
+
+    if not numeric_scores:
+        return charts
+
+    # Etiket mapping
+    tn_low = (test_name or "").lower()
+    label_map_vark = {"V": "Görsel", "A": "İşitsel", "R": "Okuma/Yazma", "K": "Kinestetik"}
+    label_map_holland = {"R": "Gerçekçi", "I": "Araştırıcı", "A": "Sanatsal",
+                         "S": "Sosyal", "E": "Girişimci", "C": "Geleneksel"}
+    label_map = None
+    if "vark" in tn_low or "öğrenme stil" in tn_low:
+        label_map = label_map_vark
+    elif "holland" in tn_low:
+        label_map = label_map_holland
+    if label_map:
+        remapped = {}
+        for k, v in numeric_scores.items():
+            new_key = label_map.get(str(k).strip().upper(), k)
+            remapped[new_key] = v
+        numeric_scores = remapped
+
+    # İkincil görünüm seçimi
+    if ptype == "donut":
+        # Donut'tan sonra yatay bar — kıyaslama için
+        secondary = _bar_chart(numeric_scores, f"{test_name} — Kıyaslamalı Görünüm")
+        if secondary:
+            charts.append(("bar", secondary))
+    elif ptype == "radar":
+        # Radar'dan sonra bar — kesin değerleri görmek için
+        secondary = _bar_chart(numeric_scores, f"{test_name} — Skor Dağılımı")
+        if secondary:
+            charts.append(("bar", secondary))
+    elif ptype == "bar":
+        # Bar'dan sonra donut — oransal bakış
+        if len(numeric_scores) >= 3:
+            secondary = _donut_chart(numeric_scores, f"{test_name} — Oransal Dağılım")
+            if secondary:
+                charts.append(("donut", secondary))
+
+    return charts
+
+
 def build_graphic_analysis_prompt(student_name, student_age, student_gender,
                                    student_grade, tests_list):
     """
@@ -395,7 +465,7 @@ def build_graphic_analysis_prompt(student_name, student_age, student_gender,
     scores_summary = "\n".join(summary_lines) if summary_lines else \
                      "(Test sonucu bulunamadı)"
 
-    prompt = f"""Sen bir rehber öğretmen ve psikolojik danışmansın. Aşağıda bir öğrencinin psikometrik test sonuçları var. Bu sonuçlara dayanarak **hem veliye hem öğrenciye** hitap eden, **son derece yalın bir Türkçe** ile yazılmış bütünsel bir analiz raporu hazırla.
+    prompt = f"""Sen bir rehber öğretmen ve psikolojik danışmansın. Aşağıda bir öğrencinin psikometrik test sonuçları var. Bu sonuçlara dayanarak **hem veliye, hem öğretmene/koça, hem de öğrenciye** hitap eden, **son derece yalın bir Türkçe** ile yazılmış bütünsel bir rapor hazırla.
 
 ÖĞRENCİ BİLGİLERİ:
 - Ad: {student_name}
@@ -406,38 +476,114 @@ def build_graphic_analysis_prompt(student_name, student_age, student_gender,
 TEST SONUÇLARI ÖZETİ:
 {scores_summary}
 
-RAPOR KURALLARI (ÇOK ÖNEMLİ):
-1. **Dil:** Günlük konuşma Türkçesi kullan. "Kinestetik", "içe dönük", "analitik düşünme" gibi teknik terimler KULLANMA. Kullanırsan hemen yanına parantez içinde çok sade bir açıklama ekle.
-2. **Ton:** Hem velinin rahat okuyabileceği hem öğrencinin motive olacağı bir ton. Eleştirel değil, yol gösterici ve pozitif.
-3. **Format:** Aşağıdaki bölümlere ayır (her bölüm kısa ve net):
+⚠️ EN ÖNEMLİ KURAL — TAVSİYE DİLİ:
+Bu bir klinik teşhis değil, bir yönlendirme ve öneri raporudur. ASLA kesin ifadeler kullanma. Şu listedeki ifadeleri tercih et:
+- "olabilir", "olma ihtimali var", "eğilimli görünüyor"
+- "faydalı olabilir", "denenebilir", "düşünülebilir"
+- "destekleyici olabilir", "katkı sağlayabilir"
+- "gibi görünüyor", "izlenim veriyor", "işaret ediyor"
 
-## 🌟 Özet Bakış
-2-3 cümlede {student_name}'ın genel profilini anlat. Kim bu çocuk? Güçlü yanı nedir? Bir bakışta ne görüyoruz?
+ŞUNLARI ASLA KULLANMA:
+- "kesinlikle", "mutlaka", "hep", "her zaman"
+- "X meslekte başarılı olacak", "Y yaşında şöyle olur" (kesin öngörü)
+- "yapmalı", "etmeli", "şart"
+- "dır/dir" kalıbı yerine "-ebilir/-abilir" kullan. Örn: "çok hareketli bir çocuktur" ❌ → "çok hareketli bir çocuk izlenimi veriyor" ✅
 
-## 💎 Öne Çıkan Güçlü Yanlar
-Test sonuçlarındaki en yüksek alanlara bak. 3-4 madde halinde yaz. Her madde için "Ne anlama geliyor?" şeklinde 1-2 cümle açıklama ekle. Örneğin "Görsel öğrenmeye yatkın → Okuduğundan çok gördüğünde daha iyi öğreniyor."
+HER ÖNERİ İÇİN NEDEN: Her öneriye mini bir "neden" ekle — hangi skordan/testten çıkarım yapıldığını kısaca belirt. Örn: "Kinestetik puanı diğerlerine göre yüksek olduğu için, elle yapılan etkinlikler denenebilir."
 
-## 📚 Öğrenme Stili
-Hangi yolla daha kolay öğreniyor? Örnekler ver — "Dersi dinlemek yerine resim, şema veya video izlediğinde daha iyi anlıyor" gibi somut ipuçları.
+DİL VE TON:
+- Günlük konuşma Türkçesi kullan. "Kinestetik", "içe dönük", "analitik düşünme" gibi teknik terim KULLANMA. Kullandığında parantez içinde sade açıklama ekle.
+- Eleştirel değil, yol gösterici ve pozitif ol.
+- 3 okuyucuya hitap et: Veli, Öğretmen/Koç, Öğrenci.
 
-## 🎯 Kariyer ve İlgi Alanları
-Holland testi sonuçlarına ve diğer verilere bakarak, ileride nelere yönelebileceğine dair fikir ver. Meslek dayatma, yönelim göster. "Bu çocuk X meslekte mutlu olur" deme, "İnsanlarla çalışmaktan enerji alan işler ona iyi gelir" gibi söyle.
+RAPOR FORMATI (her bölüm markdown ## başlık ile):
 
-## 🧘 Dikkat ve Kaygı Durumu
-Eğer dikkat veya kaygı ile ilgili test varsa buraya yaz. Yoksa bu bölümü atla. Yalın dilde durumu anlat.
+## Özet Bakış
+2-3 cümlede {student_name}'ın genel profili. Kim olduğu, nelere eğilimli göründüğü. Mutlaka "olabilir/görünüyor" dili.
 
-## 💡 Veliye Öneriler
-5-7 maddelik, çok somut öneriler. "Daha iyi çalışsın" gibi genel şey yazma. "Ödev saatinde sessiz bir oda ayırın, küçük molalar verin" gibi uygulanabilir şeyler yaz.
+## Öne Çıkan Yönler
+Test sonuçlarındaki en yüksek alanlara odaklan. 3-4 madde. Her madde: "[Alan] → [ne anlama gelebileceği]". Mesela: "Görsel öğrenmeye yatkın izlenimi → Okuduğundan çok görsellerle karşılaştığında anlaması kolaylaşabilir."
 
-## 🌱 Öğrenciye Mesaj
-Doğrudan {student_name}'a hitap eden, 4-5 cümlelik samimi ve motive edici bir mesaj. "Sen" diye başla. Testlerden anladığın en güzel şeyi söyle, ona güvenini göster. Üzerinde çalışması gereken alanları "sen yapabilirsin" diliyle söyle.
+## Öğrenme Stili Üzerine
+Hangi yolla daha rahat öğrenebileceği konusunda fikirler. "Dersi dinlemek yerine şema, video ve resimlerle çalışmak ona daha uygun olabilir" gibi somut örnekler. Bu bölümde özellikle VARK ve Çoklu Zeka skorlarına referans ver.
 
-RAPORUN TAMAMI:
-- Markdown formatında olsun (başlıklar ##, maddeler -, kalın **...**)
-- Toplamda 800-1200 kelime civarı
-- Asla hüküm verme ("başarısız", "zayıf", "eksik" gibi sözcükleri kullanma)
-- Her şey umut verici ve yol gösterici olsun
-- Cümleler kısa, fiiller aktif, tonun dostane
+## Olası İlgi ve Kariyer Yönelimleri
+Holland ve diğer verilere bakarak, ilerleyen yıllarda hangi tür alanlara yönelebileceğine dair fikirler. ASLA meslek dayatma. "İnsanlarla çalışmaktan enerji alan işler ona iyi gelebilir" gibi ipuçları. "Kesinleşmiş değildir, sadece bir eğilim göstergesidir" şeklinde uyarı ekle.
+
+## Dikkat ve Duygusal Durum
+Eğer dikkat testi (P2) veya Sınav Kaygısı testi varsa buraya yaz. Yoksa bu bölümü atla. Kaygı puanı yüksekse bile "kaygılı bir çocuk" deme, "şu an için dikkat çekilebilecek bir kaygı belirtisi göze çarpıyor" de.
+
+## Veliye Öneriler
+5-7 maddelik somut öneriler. Her biri için neden (hangi skordan çıkarıldığını) ekle. "Denenebilir", "faydalı olabilir" dili kullan.
+
+## Öğretmen ve Koçlara Notlar
+3-5 maddelik sınıf ortamı veya koçluk sürecinde dikkat edilebilecek ipuçları. "Grup çalışmaları onun için daha motive edici olabilir — sosyal skoru yüksek" tarzı.
+
+## {student_name}'a Doğrudan Mesaj
+Doğrudan öğrenciye hitap eden 4-6 cümle. "Sen" diye başla. Testlerden anlaşılan güzel yönleri söyle, ona güven ver. "Sen yapabilirsin" dili. Üzerinde çalışabileceği şeyleri nazik bir dille söyle. Asla yargılayıcı değil, motive edici ol.
+
+## Son Söz
+2-3 cümlelik kapanış. Bu raporun bir teşhis değil, bir yol arkadaşı olduğunu vurgula. "Bu rapor, {student_name}'ı tanımanıza yardımcı olmak için hazırlanmış bir yol haritası taslağı niteliğindedir. Zaman içinde değişebilir ve gelişebilir." tarzı.
+
+TOPLAM UZUNLUK: 1000-1500 kelime.
+MARKDOWN: Başlıklar ##, maddeler -, kalın **...**
+KAPANIŞ DİLİ: "olabilir, faydalı olabilir, izlenim veriyor" kalıpları ana dilin olsun.
+"""
+    return prompt
+
+
+def build_single_test_graphic_prompt(student_name, student_age, student_gender,
+                                      student_grade, test_name, scores):
+    """
+    TEK bir test için grafik bazlı kısa analiz prompt'u.
+    Tekil raporlar için kullanılır.
+    """
+    scores_text = " | ".join(
+        f"{k}: {v}" for k, v in sorted(
+            (scores or {}).items(), key=lambda x: _to_float(x[1]), reverse=True
+        )[:8]
+    ) or "(skor verisi yok)"
+
+    prompt = f"""Sen bir rehber öğretmen ve psikolojik danışmansın. Aşağıda bir öğrencinin TEK bir psikometrik testinin sonuçları var. Bu tek testin sonucuna dayanarak, veli + öğretmen + öğrenci için yalın Türkçe bir odaklı rapor hazırla.
+
+ÖĞRENCİ:
+- Ad: {student_name}, Yaş: {student_age}, Cinsiyet: {student_gender}, Sınıf: {student_grade or "—"}
+
+TEST: {test_name}
+SKORLAR: {scores_text}
+
+⚠️ TAVSİYE DİLİ (çok önemli):
+"kesinlikle", "mutlaka", "her zaman", "dır/dir" KULLANMA. Yerine:
+- "olabilir", "görünüyor", "eğilim", "izlenim"
+- "faydalı olabilir", "denenebilir"
+- "-ebilir/-abilir" kipi
+
+Tek test yorumu olduğu için şunu açıkça yaz: "Bu rapor yalnızca {test_name} sonuçlarına dayanır; kesin bir değerlendirme için diğer testlerle birlikte ele alınması önerilir."
+
+RAPOR FORMATI (toplam 500-700 kelime):
+
+## Testin Kısa Tanıtımı
+2-3 cümle: Bu test neyi ölçüyor?
+
+## {student_name}'ın Sonuç Özeti
+Skorlardaki en belirgin eğilimi yalın Türkçe ile özetle. 3-4 cümle. Kesin ifade yok.
+
+## Ne Anlama Gelebilir?
+4-5 madde. Her madde bir skor/alan için yorum. Mutlaka "neden" (skor kaç olduğu) belirt.
+
+## Veliye Öneriler
+3-4 somut öneri. "Denenebilir" dili.
+
+## Öğretmen/Koçlara Notlar
+2-3 maddelik ipucu.
+
+## {student_name}'a Mesaj
+3-4 cümle samimi, "sen" hitabıyla, motive edici.
+
+## Önemli Hatırlatma
+Bu tek test bir "resim" değil, bir "fotoğraf karesi". Diğer testlerle birlikte değerlendirildiğinde daha anlamlı olur.
+
+DİL: Günlük Türkçe, teknik terim yok, yumuşak ton.
 """
     return prompt
 
@@ -641,16 +787,16 @@ def generate_graphic_analysis_pdf(student_data, analysis_history=None,
     info = student_data["info"]
     tests = student_data.get("tests", []) or []
 
-    # 1) Grafikleri üret
-    charts = []  # [(test_name, chart_type, bytesio)]
+    # 1) Grafikleri üret — her test için birden fazla görünüm
+    charts_per_test = []  # [(test_name, [(type, bytesio), ...]), ...]
     for t in tests:
         test_name = t.get("test_name", "")
         scores = t.get("scores", {}) or {}
         if not scores:
             continue
-        chart_bytes, chart_type = build_chart_for_test(test_name, scores)
-        if chart_bytes:
-            charts.append((test_name, chart_type, chart_bytes))
+        test_charts = build_charts_for_test(test_name, scores)
+        if test_charts:
+            charts_per_test.append((test_name, test_charts))
 
     # 2) AI analiz al
     grade_val = getattr(info, "grade", None)
@@ -739,25 +885,148 @@ def generate_graphic_analysis_pdf(student_data, analysis_history=None,
             "kontrol edin.", styles["body"]))
 
     # ======= GRAFİKLER BÖLÜMÜ =======
-    if charts:
+    if charts_per_test:
         story.append(PageBreak())
         story.append(Paragraph("Test Grafikleri", styles["h1"]))
         story.append(Paragraph(
             "Aşağıdaki grafikler, raporda bahsedilen değerlendirmelerin "
-            "görsel özetidir. Her grafik bir test sonucunu farklı açıdan "
-            "gösterir.",
+            "görsel özetidir. Her test birden fazla açıdan gösterilir.",
             styles["body"]))
         story.append(Spacer(1, 10))
 
-        for idx, (test_name, chart_type, chart_bytes) in enumerate(charts):
-            # Her grafik ayrı "keep together" bloğu — sayfa kırılmasın
-            block = []
-            block.append(Paragraph(test_name, styles["h2"]))
-            img = RLImage(chart_bytes, width=15 * cm, height=12 * cm,
+        for test_name, test_charts in charts_per_test:
+            # Test başlığı
+            story.append(Paragraph(test_name, styles["h2"]))
+            # Her grafiği göster
+            for idx, (chart_type, chart_bytes) in enumerate(test_charts):
+                block = []
+                img = RLImage(chart_bytes, width=15 * cm, height=10.5 * cm,
+                              kind="proportional")
+                block.append(img)
+                if idx < len(test_charts) - 1:
+                    block.append(Spacer(1, 8))
+                else:
+                    block.append(Spacer(1, 16))
+                story.append(KeepTogether(block))
+
+    doc.build(story, onFirstPage=_header_footer,
+              onLaterPages=_header_footer)
+    buf.seek(0)
+    return buf
+
+
+# =============================================================
+# 🎯 TEKİL TEST PDF ÜRETİCİSİ
+# =============================================================
+
+def generate_single_test_report_filename(student_name, test_name):
+    ts = datetime.now().strftime("%Y%m%d_%H%M")
+    safe_test = _safe_filename(test_name)[:30]
+    return f"Tekil_{_safe_filename(student_name)}_{safe_test}_{ts}.pdf"
+
+
+def generate_single_test_graphic_pdf(student_data, test_index,
+                                       get_ai_analysis_fn=None,
+                                       format_grade_fn=None):
+    """
+    Öğrencinin belirli BİR testi için odaklı grafik analiz PDF'i üretir.
+
+    student_data: {"info": StudentInfo, "tests": [...]}
+    test_index: tests listesinde hangi testin raporlanacağı (int)
+    """
+    _register_fonts()
+    info = student_data["info"]
+    tests = student_data.get("tests", []) or []
+    if test_index >= len(tests):
+        raise ValueError("Geçersiz test indeksi")
+
+    test = tests[test_index]
+    test_name = test.get("test_name", "Test")
+    scores = test.get("scores", {}) or {}
+
+    # Grafikleri üret (çoklu görünüm)
+    test_charts = build_charts_for_test(test_name, scores)
+
+    # AI analiz
+    grade_val = getattr(info, "grade", None)
+    grade_text = format_grade_fn(grade_val) if format_grade_fn else (
+        str(grade_val) if grade_val else "—"
+    )
+
+    ai_report_md = ""
+    if get_ai_analysis_fn is not None and scores:
+        prompt = build_single_test_graphic_prompt(
+            student_name=info.name,
+            student_age=info.age,
+            student_gender=info.gender,
+            student_grade=grade_text,
+            test_name=test_name,
+            scores=scores,
+        )
+        ai_report_md = get_ai_analysis_fn(prompt) or ""
+
+    # PDF
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=2 * cm, rightMargin=2 * cm,
+        topMargin=1.8 * cm, bottomMargin=1.6 * cm,
+        title=f"Tekil Rapor — {info.name} — {test_name}",
+        author="Eğitim Check-Up",
+    )
+    styles = _styles()
+    story = []
+
+    # Kapak
+    story.append(Spacer(1, 3 * cm))
+    story.append(Paragraph("EĞİTİM CHECK UP", styles["subtitle"]))
+    story.append(Spacer(1, 0.3 * cm))
+    story.append(Paragraph("Tekil Test Analizi", styles["title"]))
+    story.append(Spacer(1, 0.2 * cm))
+    story.append(Paragraph(test_name, styles["subtitle"]))
+    story.append(Spacer(1, 1.5 * cm))
+
+    cover_data = [
+        [Paragraph("<b>Ad Soyad</b>", styles["cover_info"]),
+         Paragraph(info.name or "—", styles["cover_info"])],
+        [Paragraph("<b>Sınıf</b>", styles["cover_info"]),
+         Paragraph(grade_text, styles["cover_info"])],
+        [Paragraph("<b>Test</b>", styles["cover_info"]),
+         Paragraph(test_name, styles["cover_info"])],
+        [Paragraph("<b>Rapor Tarihi</b>", styles["cover_info"]),
+         Paragraph(datetime.now().strftime("%d.%m.%Y"), styles["cover_info"])],
+    ]
+    cover_tbl = Table(cover_data, colWidths=[6 * cm, 8 * cm])
+    cover_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), HexColor(CREAM)),
+        ("BOX", (0, 0), (-1, -1), 1.5, HexColor(GOLD)),
+        ("INNERGRID", (0, 0), (-1, -1), 0.3, HexColor(GOLD_LIGHT)),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    story.append(cover_tbl)
+
+    # Analiz + grafikleri tek sayfa akışında
+    story.append(PageBreak())
+
+    # Grafikleri önce koy
+    if test_charts:
+        story.append(Paragraph("Görsel Özet", styles["h1"]))
+        for chart_type, chart_bytes in test_charts:
+            img = RLImage(chart_bytes, width=14 * cm, height=9 * cm,
                           kind="proportional")
-            block.append(img)
-            block.append(Spacer(1, 14))
-            story.append(KeepTogether(block))
+            story.append(KeepTogether([img, Spacer(1, 8)]))
+        story.append(Spacer(1, 12))
+
+    # Analiz metni
+    if ai_report_md and not ai_report_md.startswith("⚠️"):
+        story.append(Paragraph("Analiz", styles["h1"]))
+        story.extend(_parse_markdown_to_flowables(ai_report_md, styles))
+    elif ai_report_md:
+        story.append(Paragraph("Analiz", styles["h1"]))
+        story.append(Paragraph(ai_report_md, styles["body"]))
 
     doc.build(story, onFirstPage=_header_footer,
               onLaterPages=_header_footer)
