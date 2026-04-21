@@ -2,6 +2,7 @@ streamlit
 anthropic
 python-dotenv
 pandas
+numpy
 matplotlib
 seaborn
 psycopg2-binary
