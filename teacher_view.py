@@ -2204,6 +2204,64 @@ def app():
 
     st.markdown("---")
 
+    # ===============================================
+    # 🩺 SİSTEM SAĞLIĞI — Yönetici paneli için
+    # ===============================================
+    try:
+        from db_utils import get_db_diagnostics, bootstrap_first_teacher
+        with st.expander("🩺 Sistem Sağlığı (Tanı)", expanded=False):
+            diag = get_db_diagnostics()
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                eng = diag.get("db_engine")
+                if eng == "postgresql":
+                    st.success(f"🟢 PostgreSQL")
+                elif eng == "sqlite":
+                    st.warning("🟡 SQLite")
+                else:
+                    st.error("🔴 Bağlantı yok")
+            with c2:
+                st.caption(f"👨‍🏫 Öğretmen: **{diag.get('teachers_count')}** (aktif: **{diag.get('active_teachers_count')}**)")
+                st.caption(f"👨‍🎓 Öğrenci: **{diag.get('students_count')}**")
+                st.caption(f"📝 Sonuç: **{diag.get('results_count')}**")
+            with c3:
+                st.caption(f"{'✅' if diag.get('db_url_present') else '❌'} SUPABASE_DB_URL")
+                st.caption(f"{'✅' if diag.get('teacher_password_configured') else '❌'} teacher_password")
+                st.caption(f"{'✅' if diag.get('anthropic_key_configured') else '❌'} ANTHROPIC_API_KEY")
+
+            errs = []
+            for k, label in [("connection_error", "Bağlantı"), ("teachers_error", "Teachers"),
+                             ("students_error", "Students"), ("results_error", "Results")]:
+                if diag.get(k):
+                    errs.append((label, diag[k]))
+            if errs:
+                st.markdown("**❌ Hatalar:**")
+                for t, e in errs:
+                    st.code(f"{t}: {e}", language="text")
+
+            last_err = st.session_state.get("_last_db_error")
+            if last_err:
+                st.warning("Son runtime hatası:")
+                st.code(last_err, language="text")
+    except Exception as _e_diag:
+        st.caption(f"(Sistem Sağlığı yüklenemedi: {_e_diag})")
+
+    # ===============================================
+    # ANA İÇERİK (try/except ile korumalı)
+    # ===============================================
+    try:
+        _render_admin_panel_body()
+    except Exception as e:
+        import traceback
+        st.error("🚨 **Yönetici paneli yüklenirken hata oluştu!**")
+        st.code(f"{type(e).__name__}: {e}", language="text")
+        with st.expander("🔍 Hata Detayı (Stack Trace)", expanded=True):
+            st.code(traceback.format_exc(), language="text")
+        st.info("👆 Bu hata mesajını Claude'a gönderin — kesin tanı için gerekli.")
+
+
+def _render_admin_panel_body():
+    """Admin panelinin asıl içeriği — try/except içinde çağrılır."""
     # Veritabanından verileri çek
     data = get_all_students_with_results()
     student_names_all = [d["info"].name for d in data] if data else []
