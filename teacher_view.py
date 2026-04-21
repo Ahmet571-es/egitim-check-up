@@ -2262,6 +2262,95 @@ def app():
                         st.balloons()
                     else:
                         st.error("Bazı tablolar oluşturulamadı. Yukarıdaki hataları Claude'a gönderin.")
+
+            # ============ HIZLI ÖĞRETMEN EKLEME (Ana panel çökse bile çalışır) ============
+            st.markdown("---")
+            st.markdown("#### ➕ Hızlı Öğretmen Ekle")
+            st.caption("Ana panel sorun yaşıyorsa buradan doğrudan öğretmen ekleyebilirsiniz.")
+
+            with st.form("quick_teacher_form_admin"):
+                qt_name = st.text_input("👤 Ad Soyad", placeholder="Örn: Mehmet Eser", key="qt_name_admin")
+                qt_pw = st.text_input("🔒 Şifre (en az 4 karakter)", type="password", key="qt_pw_admin")
+                qt_submit = st.form_submit_button("➕ Öğretmen Ekle", type="primary")
+
+                if qt_submit:
+                    if not qt_name or not qt_pw:
+                        st.warning("⚠️ Ad ve şifre boş olamaz.")
+                    elif len(qt_pw) < 4:
+                        st.warning("⚠️ Şifre en az 4 karakter olmalı.")
+                    else:
+                        try:
+                            from db_utils import create_teacher
+                            ok, msg = create_teacher(qt_name.strip().title(), qt_pw)
+                            if ok:
+                                st.success(f"✅ '{qt_name.strip().title()}' başarıyla eklendi! Giriş ekranına dönüp Öğretmen Girişi'nden giriş yapabilirsiniz.")
+                                st.balloons()
+                            else:
+                                st.error(msg)
+                        except Exception as _e_add:
+                            st.error(f"Hata: {_e_add}")
+
+            # ============ HIZLI ÖĞRENCİ-ÖĞRETMEN ATAMA ============
+            st.markdown("---")
+            st.markdown("#### 🔗 Hızlı Öğrenci-Öğretmen Atama")
+            st.caption("Mevcut öğrencileri bir öğretmene toplu atayın.")
+
+            try:
+                from db_utils import get_all_teachers as _gat, assign_student_to_teacher
+                _teachers_for_assign = _gat()
+                if not _teachers_for_assign:
+                    st.info("Önce yukarıdan bir öğretmen ekleyin.")
+                else:
+                    # Tüm öğrencileri çek
+                    from db_utils import get_connection as _gc
+                    _conn, _eng = _gc()
+                    _c = _conn.cursor()
+                    try:
+                        _c.execute("SELECT id, name, teacher_id FROM students ORDER BY name")
+                        _all_students = _c.fetchall()
+                    except Exception:
+                        _all_students = []
+                    finally:
+                        _conn.close()
+
+                    if not _all_students:
+                        st.info("Kayıtlı öğrenci yok.")
+                    else:
+                        _teacher_opts = {t["name"]: t["id"] for t in _teachers_for_assign}
+                        _sel_teacher = st.selectbox(
+                            "Hedef Öğretmen",
+                            options=list(_teacher_opts.keys()),
+                            key="assign_teacher_sel"
+                        )
+                        _student_opts = {f"{s[1]} {'(atanmış)' if s[2] else '(atanmamış)'}": s[0] for s in _all_students}
+                        _sel_students = st.multiselect(
+                            f"Atanacak Öğrenciler ({len(_all_students)} toplam)",
+                            options=list(_student_opts.keys()),
+                            key="assign_students_multi"
+                        )
+                        if st.button("🔗 Seçilenleri Ata", type="primary", key="btn_assign_students"):
+                            if not _sel_students:
+                                st.warning("En az bir öğrenci seçin.")
+                            else:
+                                _tid = _teacher_opts[_sel_teacher]
+                                _success = 0
+                                _failed = 0
+                                for _s_label in _sel_students:
+                                    _sid = _student_opts[_s_label]
+                                    try:
+                                        if assign_student_to_teacher(_sid, _tid):
+                                            _success += 1
+                                        else:
+                                            _failed += 1
+                                    except Exception:
+                                        _failed += 1
+                                if _success:
+                                    st.success(f"✅ {_success} öğrenci '{_sel_teacher}' öğretmenine atandı.")
+                                if _failed:
+                                    st.error(f"❌ {_failed} öğrenci atanamadı.")
+            except Exception as _e_assign:
+                st.caption(f"(Atama aracı yüklenemedi: {_e_assign})")
+
     except Exception as _e_diag:
         st.caption(f"(Sistem Sağlığı yüklenemedi: {_e_diag})")
 
