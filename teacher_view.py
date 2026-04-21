@@ -3424,6 +3424,64 @@ def teacher_panel_app():
                 st.info("Bu öğrenci henüz test çözmemiştir.")
                 continue
 
+            # ============ RAPOR İNDİRME BUTONLARI ============
+            st.markdown("#### 📥 Öğrenci Raporlarını İndir")
+            student_history = get_student_analysis_history(info.id)
+
+            col_dl1, col_dl2, col_dl3 = st.columns(3)
+
+            with col_dl1:
+                try:
+                    from pdf_engine import generate_student_pdf, generate_student_pdf_filename
+                    pdf_buffer = generate_student_pdf(student_data, student_history)
+                    pdf_filename = generate_student_pdf_filename(info.name)
+                    st.download_button(
+                        label="📄 PDF İndir",
+                        data=pdf_buffer,
+                        file_name=pdf_filename,
+                        mime="application/pdf",
+                        key=f"tp_pdf_{info.id}",
+                        type="primary",
+                        use_container_width=True
+                    )
+                except Exception as _e_pdf:
+                    st.caption(f"PDF hatası: {str(_e_pdf)[:80]}")
+
+            with col_dl2:
+                try:
+                    from docx_engine import generate_student_docx, generate_student_docx_filename
+                    docx_buffer = generate_student_docx(student_data, student_history)
+                    docx_filename = generate_student_docx_filename(info.name)
+                    st.download_button(
+                        label="📝 Word İndir",
+                        data=docx_buffer,
+                        file_name=docx_filename,
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        key=f"tp_docx_{info.id}",
+                        type="primary",
+                        use_container_width=True
+                    )
+                except Exception as _e_docx:
+                    st.caption(f"Word hatası: {str(_e_docx)[:80]}")
+
+            with col_dl3:
+                try:
+                    student_excel = generate_student_excel(student_data, student_history)
+                    from datetime import datetime as _dt
+                    _ts = _dt.now().strftime("%Y%m%d_%H%M")
+                    _safe = info.name.replace(" ", "_")
+                    st.download_button(
+                        label="📊 Excel İndir",
+                        data=student_excel,
+                        file_name=f"{_safe}_rapor_{_ts}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"tp_xlsx_{info.id}",
+                        type="primary",
+                        use_container_width=True
+                    )
+                except Exception as _e_xlsx:
+                    st.caption(f"Excel hatası: {str(_e_xlsx)[:80]}")
+
             # Test sonuçları
             st.markdown("#### 📝 Test Sonuçları")
             for t in tests:
@@ -3438,7 +3496,7 @@ def teacher_panel_app():
 
                     if t.get("report"):
                         st.markdown("**📄 Rapor:**")
-                        st.markdown(t["report"][:2000])
+                        st.markdown(t["report"])
 
             # AI Analiz butonu (ortak rapor motoru)
             st.markdown("#### 🤖 AI Analiz")
@@ -3500,4 +3558,4 @@ def teacher_panel_app():
                 st.markdown("#### 📚 Rapor Arşivi")
                 for h in history:
                     with st.expander(f"📄 {h['combination']} — {h['date'][:10] if h['date'] else ''}"):
-                        st.markdown(h["report"][:3000])
+                        st.markdown(h["report"])
