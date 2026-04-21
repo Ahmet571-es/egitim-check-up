@@ -3,7 +3,7 @@ import time
 import os
 import base64
 
-from db_utils import init_db, login_student, register_student, reset_student_password, repair_database, get_all_teachers, authenticate_teacher
+from db_utils import init_db, login_student, register_student, reset_student_password, repair_database, get_all_teachers, authenticate_teacher, get_db_diagnostics, bootstrap_first_teacher
 
 st.set_page_config(
     page_title="EĞİTİM CHECK UP",
@@ -1189,7 +1189,8 @@ def main_auth_flow():
 
             teachers = get_all_teachers()
             if not teachers:
-                st.warning("⚠️ Henüz sistemde kayıtlı öğretmen bulunmamaktadır. Lütfen yöneticiye başvurun.")
+                st.warning("⚠️ Henüz sistemde kayıtlı öğretmen bulunmamaktadır.")
+                st.info("👇 **Nasıl çözülür?**\n\n1. Aşağıdaki **🛡️ Yönetici Girişi** butonuna tıklayın\n2. Yönetici şifresi ile giriş yapın\n3. Yönetici panelinden ilk öğretmeni ekleyin\n\nVeya sayfanın en altındaki **🩺 Sistem Sağlığı** panelinden Bootstrap aracıyla hızlıca oluşturabilirsiniz.")
             else:
                 with st.form("teacher_login_form"):
                     teacher_options = {t["name"]: t["id"] for t in teachers}
@@ -1259,6 +1260,110 @@ def main_auth_flow():
                 <span class="chip">💡 Çoklu Zeka</span>
             </div>
         """, unsafe_allow_html=True)
+
+    # =========================================================
+    # 🩺 SİSTEM SAĞLIĞI PANELİ
+    # =========================================================
+    with st.expander("🩺 Sistem Sağlığı & Bootstrap (Yönetici)", expanded=False):
+        diag = get_db_diagnostics()
+
+        # Durum özeti
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if diag["db_engine"] == "postgresql":
+                st.success("🟢 **PostgreSQL (Supabase)**\nVeriler kalıcı")
+            elif diag["db_engine"] == "sqlite":
+                st.warning("🟡 **SQLite (Geçici)**\n⚠️ Veriler restart'ta silinir")
+            else:
+                st.error("🔴 **Bağlantı yok**")
+
+        with col2:
+            st.markdown("**🔐 Secrets Durumu**")
+            st.caption(f"{'✅' if diag['db_url_present'] else '❌'} SUPABASE_DB_URL")
+            st.caption(f"{'✅' if diag['teacher_password_configured'] else '❌'} teacher_password")
+            st.caption(f"{'✅' if diag['anthropic_key_configured'] else '❌'} ANTHROPIC_API_KEY")
+
+        with col3:
+            st.markdown("**📊 Tablo Sayıları**")
+            t_count = diag.get("teachers_count")
+            a_count = diag.get("active_teachers_count")
+            s_count = diag.get("students_count")
+            r_count = diag.get("results_count")
+            st.caption(f"👨‍🏫 Öğretmen: **{t_count}** (aktif: **{a_count}**)")
+            st.caption(f"👨‍🎓 Öğrenci: **{s_count}**")
+            st.caption(f"📝 Test Sonucu: **{r_count}**")
+
+        # Hatalar
+        errors = []
+        if diag.get("connection_error"):
+            errors.append(("Bağlantı", diag["connection_error"]))
+        if diag.get("teachers_error"):
+            errors.append(("Teachers tablosu", diag["teachers_error"]))
+        if diag.get("students_error"):
+            errors.append(("Students tablosu", diag["students_error"]))
+        if diag.get("results_error"):
+            errors.append(("Results tablosu", diag["results_error"]))
+
+        if errors:
+            st.markdown("---")
+            st.error("❌ **Yakalanan Hatalar:**")
+            for title, err in errors:
+                st.code(f"{title}: {err}", language="text")
+
+        # Runtime'da yakalanan son hata
+        last_err = st.session_state.get("_last_db_error")
+        if last_err:
+            st.markdown("---")
+            st.warning("⚠️ **Son çalışma zamanı hatası:**")
+            st.code(last_err, language="text")
+
+        # Tanı yorumu
+        st.markdown("---")
+        st.markdown("#### 🔎 Tanı")
+
+        if not diag["db_url_present"]:
+            st.error("🚨 **SUPABASE_DB_URL secret'ta yok.** Streamlit Cloud → Settings → Secrets kısmına ekleyin. SQLite kullanılıyor, her restart'ta veriler siliniyor.")
+        elif diag["db_engine"] == "sqlite":
+            st.error("🚨 **SUPABASE_DB_URL var ama bağlantı kurulamadı.** Muhtemelen: (a) Supabase projesi paused (7 gün inaktivite), (b) şifre yanlış/eski, (c) URL formatı bozuk. Supabase Dashboard'u kontrol edin.")
+        elif not diag["teacher_password_configured"]:
+            st.warning("⚠️ **`teacher_password` secret'ı yok.** Yönetici paneline giriş yapamazsınız. Secrets'a ekleyin: `teacher_password = \"sifre123\"`")
+        elif diag["teachers_count"] == 0 or diag["active_teachers_count"] == 0:
+            st.warning("⚠️ **Teachers tablosu boş veya tüm öğretmenler pasif.** Öğretmen girişi yapabilmek için önce bir öğretmen oluşturmanız gerekiyor. Aşağıdaki Bootstrap aracını kullanın ⬇️")
+        elif diag["students_count"] == 0:
+            st.info("ℹ️ **Students tablosu boş.** Öğrenciler henüz kayıt olmamış. Bu normal olabilir — öğrenciler 'Öğrenci Girişi / Kayıt' ekranından hesap açacak.")
+        else:
+            st.success(f"✅ **Sistem sağlıklı.** {diag['teachers_count']} öğretmen, {diag['students_count']} öğrenci, {diag['results_count']} test sonucu kayıtlı.")
+
+        # Bootstrap: ilk öğretmeni oluştur
+        if diag.get("connection_ok") and diag.get("teachers_count") == 0:
+            st.markdown("---")
+            st.markdown("#### 🛠️ İlk Öğretmen Bootstrap")
+            st.caption("Teachers tablosu boş. Buradan ilk öğretmeni oluşturabilirsiniz. Bu araç sadece tablo boşken çalışır — güvenlik için.")
+
+            with st.form("bootstrap_teacher_form"):
+                bs_admin_pw = st.text_input("🔑 Yönetici Şifresi (secrets'taki teacher_password)", type="password")
+                bs_name = st.text_input("👤 Öğretmen Ad Soyad", placeholder="Örn: Mehmet Eser")
+                bs_pw = st.text_input("🔒 Öğretmen Şifresi", type="password", placeholder="En az 4 karakter")
+                bs_submit = st.form_submit_button("🚀 İlk Öğretmeni Oluştur", type="primary")
+
+                if bs_submit:
+                    secret_admin_pw = get_teacher_password()
+                    if not secret_admin_pw:
+                        st.error("❌ `teacher_password` secret'ı yapılandırılmamış. Önce Streamlit Cloud Secrets'a ekleyin.")
+                    elif bs_admin_pw != secret_admin_pw:
+                        st.error("❌ Yönetici şifresi hatalı.")
+                    elif not bs_name or not bs_pw:
+                        st.warning("⚠️ Ad ve şifre boş olamaz.")
+                    elif len(bs_pw) < 4:
+                        st.warning("⚠️ Öğretmen şifresi en az 4 karakter olmalı.")
+                    else:
+                        ok, msg = bootstrap_first_teacher(bs_name.strip().title(), bs_pw)
+                        if ok:
+                            st.success(msg)
+                            st.info("Şimdi sayfayı yenileyin ve 'Öğretmen Girişi'nden giriş yapın.")
+                            st.balloons()
+                        else:
+                            st.error(msg)
 
     st.markdown('<div class="version-badge">EĞİTİM CHECK UP v2.1</div>', unsafe_allow_html=True)
 

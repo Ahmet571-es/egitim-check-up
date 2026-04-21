@@ -549,7 +549,15 @@ def get_all_students_with_results():
         return all_data
 
     except Exception as e:
-        print(f"Veri çekme hatası: {e}")
+        print(f"⚠️ get_all_students_with_results hatası: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        try:
+            st.session_state["_last_db_error"] = f"get_all_students_with_results: {str(e)[:200]}"
+        except Exception:
+            pass
         return []
 
     finally:
@@ -760,7 +768,17 @@ def get_all_teachers():
         c.execute(f"SELECT id, name, created_at FROM teachers WHERE is_active={ph} ORDER BY name", (active_val,))
         rows = c.fetchall()
         return [{"id": r[0], "name": r[1], "created_at": str(r[2]) if r[2] else ""} for r in rows]
-    except Exception:
+    except Exception as e:
+        print(f"⚠️ get_all_teachers hatası: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        # Session state'e kaydet ki UI görebilsin
+        try:
+            st.session_state["_last_db_error"] = f"get_all_teachers: {str(e)[:200]}"
+        except Exception:
+            pass
         return []
     finally:
         conn.close()
@@ -871,5 +889,165 @@ def get_unassigned_students():
         return [{"id": r[0], "name": r[1]} for r in c.fetchall()]
     except Exception:
         return []
+    finally:
+        conn.close()
+
+
+# ============================================================
+# 🩺 SİSTEM SAĞLIĞI / DIAGNOSTIC
+# ============================================================
+
+def get_db_diagnostics():
+    """
+    Veritabanı ve secret durumunu kapsamlı şekilde döndürür.
+    Sorun teşhisi için.
+    """
+    info = {
+        "db_engine": None,
+        "db_url_present": False,
+        "teacher_password_configured": False,
+        "anthropic_key_configured": False,
+        "connection_ok": False,
+        "connection_error": None,
+        "teachers_count": None,
+        "teachers_error": None,
+        "students_count": None,
+        "students_error": None,
+        "results_count": None,
+        "results_error": None,
+        "active_teachers_count": None,
+        "tables_exist": {},
+    }
+
+    # Secrets kontrolü
+    try:
+        if "SUPABASE_DB_URL" in st.secrets and st.secrets["SUPABASE_DB_URL"]:
+            info["db_url_present"] = True
+    except Exception:
+        pass
+    if not info["db_url_present"] and os.getenv("SUPABASE_DB_URL"):
+        info["db_url_present"] = True
+
+    try:
+        if "teacher_password" in st.secrets and st.secrets["teacher_password"]:
+            info["teacher_password_configured"] = True
+    except Exception:
+        pass
+    if not info["teacher_password_configured"] and os.getenv("TEACHER_PASSWORD"):
+        info["teacher_password_configured"] = True
+
+    try:
+        if "ANTHROPIC_API_KEY" in st.secrets and st.secrets["ANTHROPIC_API_KEY"]:
+            info["anthropic_key_configured"] = True
+    except Exception:
+        pass
+    if not info["anthropic_key_configured"] and os.getenv("ANTHROPIC_API_KEY"):
+        info["anthropic_key_configured"] = True
+
+    # DB bağlantısı
+    try:
+        conn, engine = get_connection()
+        info["db_engine"] = engine
+        info["connection_ok"] = True
+        c = conn.cursor()
+
+        # Hangi tablolar var?
+        for tbl in ["teachers", "students", "results", "analysis_history"]:
+            try:
+                c.execute(f"SELECT COUNT(*) FROM {tbl}")
+                cnt = c.fetchone()
+                info["tables_exist"][tbl] = cnt[0] if cnt else 0
+            except Exception as e:
+                info["tables_exist"][tbl] = f"HATA: {str(e)[:100]}"
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+        # teachers detay
+        try:
+            c.execute("SELECT COUNT(*) FROM teachers")
+            row = c.fetchone()
+            info["teachers_count"] = row[0] if row else 0
+        except Exception as e:
+            info["teachers_error"] = str(e)[:200]
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+
+        try:
+            ph = get_placeholder(engine)
+            active_val = True if engine == "postgresql" else 1
+            c.execute(f"SELECT COUNT(*) FROM teachers WHERE is_active={ph}", (active_val,))
+            row = c.fetchone()
+            info["active_teachers_count"] = row[0] if row else 0
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+
+        # students detay
+        try:
+            c.execute("SELECT COUNT(*) FROM students")
+            row = c.fetchone()
+            info["students_count"] = row[0] if row else 0
+        except Exception as e:
+            info["students_error"] = str(e)[:200]
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+
+        # results detay
+        try:
+            c.execute("SELECT COUNT(*) FROM results")
+            row = c.fetchone()
+            info["results_count"] = row[0] if row else 0
+        except Exception as e:
+            info["results_error"] = str(e)[:200]
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+
+        conn.close()
+
+    except Exception as e:
+        info["connection_error"] = str(e)[:300]
+
+    return info
+
+
+def bootstrap_first_teacher(name, password):
+    """
+    Teachers tablosu boşken ilk öğretmeni doğrudan oluşturur.
+    Güvenlik: sadece tablo boşsa çalışır.
+    """
+    conn, engine = get_connection()
+    c = conn.cursor()
+    ph = get_placeholder(engine)
+    try:
+        c.execute("SELECT COUNT(*) FROM teachers")
+        row = c.fetchone()
+        count = row[0] if row else 0
+        if count > 0:
+            return False, f"Teachers tablosunda {count} kayıt zaten var. Bootstrap sadece boş tablolarda çalışır."
+
+        hashed_pw = hash_password(password)
+        active_val = True if engine == "postgresql" else 1
+        c.execute(
+            f"INSERT INTO teachers (name, password, is_active) VALUES ({ph}, {ph}, {ph})",
+            (name, hashed_pw, active_val)
+        )
+        conn.commit()
+        return True, f"✅ İlk öğretmen '{name}' başarıyla oluşturuldu."
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return False, f"Hata: {str(e)[:200]}"
     finally:
         conn.close()
